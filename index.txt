@@ -1,0 +1,1923 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Твой челлендж</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211c;
+      --muted: #637169;
+      --line: #dbe5de;
+      --paper: #fbf8f1;
+      --panel: #ffffff;
+      --mint: #91d9b8;
+      --mint-strong: #32a875;
+      --coral: #ff7a5c;
+      --sun: #ffd36a;
+      --blue: #5477e8;
+      --shadow: 0 24px 70px rgba(23, 33, 28, .14);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 211, 106, .34), transparent 28%),
+        radial-gradient(circle at 88% 0%, rgba(145, 217, 184, .42), transparent 30%),
+        linear-gradient(145deg, #f8f1e5 0%, #eef6ef 100%);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(100%, 980px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom));
+    }
+
+    .phone-shell {
+      display: grid;
+      gap: 18px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 2px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: conic-gradient(from 220deg, var(--coral), var(--sun), var(--mint), var(--blue), var(--coral));
+      box-shadow: 0 12px 28px rgba(50, 168, 117, .24);
+    }
+
+    .brand-mark::after {
+      content: "";
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ghost-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid rgba(23, 33, 28, .12);
+      border-radius: 999px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, .62);
+      backdrop-filter: blur(12px);
+    }
+
+    .menu-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-button {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 1px solid rgba(23, 33, 28, .12);
+      border-radius: 16px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, .72);
+      backdrop-filter: blur(12px);
+    }
+
+    .menu-button span,
+    .menu-button::before,
+    .menu-button::after {
+      content: "";
+      width: 18px;
+      height: 2px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .menu-button span {
+      display: block;
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 12;
+      min-width: 210px;
+      display: none;
+      padding: 8px;
+      border: 1px solid rgba(23, 33, 28, .1);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 18px 44px rgba(23, 33, 28, .16);
+      backdrop-filter: blur(18px);
+    }
+
+    .menu-panel.open {
+      display: grid;
+      gap: 4px;
+    }
+
+    .menu-panel button {
+      min-height: 42px;
+      padding: 0 12px;
+      border-radius: 12px;
+      color: var(--ink);
+      background: transparent;
+      text-align: left;
+      font-weight: 750;
+    }
+
+    .menu-panel button:hover {
+      background: #edf5ef;
+    }
+
+    .card {
+      padding: 22px;
+      border: 1px solid rgba(23, 33, 28, .08);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .84);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .hero-card {
+      display: grid;
+      gap: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(255, 122, 92, .16), transparent 42%),
+        linear-gradient(300deg, rgba(84, 119, 232, .13), transparent 34%);
+      pointer-events: none;
+    }
+
+    .hero-card > * { position: relative; }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--mint-strong);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .headline {
+      margin: 0;
+      font-size: clamp(34px, 9vw, 52px);
+      line-height: .94;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .screen {
+      display: none;
+      gap: 16px;
+    }
+
+    .screen.active {
+      display: grid;
+    }
+
+    .form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .input {
+      width: 100%;
+      min-height: 52px;
+      padding: 0 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      outline: 0;
+      color: var(--ink);
+      background: #fff;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    textarea.input {
+      min-height: 82px;
+      padding-top: 13px;
+      resize: vertical;
+    }
+
+    .input:focus {
+      border-color: var(--mint-strong);
+      box-shadow: 0 0 0 4px rgba(50, 168, 117, .14);
+    }
+
+    .primary-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      width: 100%;
+      padding: 0 18px;
+      border-radius: 18px;
+      color: #fff;
+      background: linear-gradient(135deg, #1e9d6a 0%, #2677dd 100%);
+      box-shadow: 0 16px 34px rgba(38, 119, 221, .22);
+      font-weight: 800;
+    }
+
+    .secondary-button {
+      min-height: 46px;
+      padding: 0 14px;
+      border-radius: 15px;
+      color: var(--ink);
+      background: #edf5ef;
+      font-weight: 750;
+    }
+
+    .link-button {
+      width: fit-content;
+      min-height: 36px;
+      padding: 0;
+      color: var(--blue);
+      background: transparent;
+      font-weight: 800;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .challenge-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .challenge-item {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      border: 1px solid rgba(23, 33, 28, .08);
+      border-radius: 20px;
+      color: var(--ink);
+      background: #fff;
+      text-align: left;
+      box-shadow: 0 10px 24px rgba(23, 33, 28, .06);
+    }
+
+    .challenge-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .challenge-item.active {
+      border-color: rgba(50, 168, 117, .42);
+      background: #f4fbf7;
+    }
+
+    .challenge-item strong {
+      font-size: 18px;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .challenge-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .delete-challenge {
+      width: 44px;
+      border-radius: 16px;
+      color: #bd3f32;
+      background: #fff2ef;
+      font-size: 22px;
+      font-weight: 850;
+    }
+
+    .auth-toggle {
+      display: flex;
+      gap: 8px;
+      padding: 5px;
+      border-radius: 18px;
+      background: #edf2ee;
+    }
+
+    .auth-toggle button {
+      flex: 1;
+      min-height: 42px;
+      border-radius: 14px;
+      color: var(--muted);
+      background: transparent;
+      font-weight: 800;
+    }
+
+    .auth-toggle button.active {
+      color: var(--ink);
+      background: #fff;
+      box-shadow: 0 8px 22px rgba(23, 33, 28, .09);
+    }
+
+    .goal-builder {
+      display: grid;
+      gap: 14px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 8px 0 6px;
+    }
+
+    .section-title h2,
+    .section-title h3 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .section-title p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .goal-input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .time-row {
+      grid-template-columns: 1fr 92px auto;
+    }
+
+    .icon-button {
+      width: 52px;
+      min-width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border-radius: 17px;
+      color: #fff;
+      background: var(--ink);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .pill-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid rgba(23, 33, 28, .08);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .pill-item strong {
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .draft-edit {
+      display: grid;
+      gap: 8px;
+    }
+
+    .draft-time-row {
+      display: grid;
+      grid-template-columns: 1fr 92px;
+      gap: 8px;
+    }
+
+    .draft-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .mini-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      color: var(--ink);
+      background: #eef5f0;
+      font-weight: 900;
+    }
+
+    .pill-item small {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .remove-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
+      color: var(--muted);
+      background: #f2f2ed;
+      font-weight: 900;
+    }
+
+    .progress-card {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border-radius: var(--radius);
+      background: #18231e;
+      color: #fff;
+      box-shadow: 0 24px 60px rgba(23, 33, 28, .22);
+    }
+
+    .progress-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .progress-head h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .progress-head p {
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, .68);
+      font-size: 13px;
+    }
+
+    .percent {
+      min-width: 82px;
+      text-align: right;
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .progress-track {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .12);
+    }
+
+    .progress-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .progress-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(255, 255, 255, .72);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--mint), var(--sun), var(--coral));
+      transition: width .24s ease;
+    }
+
+    .progress-fill.overall {
+      background: linear-gradient(90deg, #7dd3fc, #91d9b8);
+    }
+
+    .goal-card {
+      display: grid;
+      gap: 8px;
+      padding: 11px 12px;
+      border: 1px solid rgba(23, 33, 28, .08);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+
+    .goal-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .goal-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .goal-title strong {
+      font-size: 15px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .goal-target {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #226149;
+      background: #e7f5ed;
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .check {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      border-radius: 13px;
+      border: 1px solid var(--line);
+      background: #f6f8f4;
+      position: relative;
+    }
+
+    .check.done {
+      border-color: transparent;
+      background: var(--mint-strong);
+    }
+
+    .check.done::after {
+      content: "";
+      position: absolute;
+      left: 13px;
+      top: 8px;
+      width: 9px;
+      height: 17px;
+      border: solid #fff;
+      border-width: 0 3px 3px 0;
+      transform: rotate(45deg);
+    }
+
+    .time-select-wrap {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .time-select-wrap span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .time-select {
+      width: 100%;
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      outline: 0;
+      color: var(--ink);
+      background: #f6f8f4;
+      font-weight: 800;
+    }
+
+    .state-line {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .state-line.error {
+      color: #c34234;
+    }
+
+    .empty {
+      padding: 20px;
+      border: 1px dashed var(--line);
+      border-radius: 20px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255, 255, 255, .5);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 4px;
+      padding: 14px;
+      border-radius: 16px;
+      background: #f6f8f4;
+    }
+
+    .metric strong {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .day-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .day-cell {
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      padding: 6px 4px;
+      border-radius: 14px;
+      color: var(--ink);
+      background: #eef1ec;
+      font-weight: 850;
+    }
+
+    .day-cell small {
+      color: rgba(23, 33, 28, .58);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .day-cell.good { background: #afe4c8; }
+    .day-cell.mid { background: #ffe49b; }
+    .day-cell.low { background: #ffd0c5; }
+    .day-cell.future {
+      color: rgba(23, 33, 28, .35);
+      background: rgba(255, 255, 255, .58);
+    }
+
+    .analytics-goal {
+      display: grid;
+      gap: 8px;
+      padding: 13px;
+      border: 1px solid rgba(23, 33, 28, .08);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .analytics-goal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      font-weight: 850;
+    }
+
+    .mini-track {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #edf2ee;
+    }
+
+    .mini-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--mint-strong), var(--blue));
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .insight {
+      padding: 12px;
+      border-radius: 15px;
+      color: var(--muted);
+      background: #f6f8f4;
+      font-weight: 700;
+    }
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      place-items: center;
+      background: rgba(248, 241, 229, .72);
+      backdrop-filter: blur(10px);
+    }
+
+    .loading.active {
+      display: grid;
+    }
+
+    .loader {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 5px solid rgba(23, 33, 28, .12);
+      border-top-color: var(--mint-strong);
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (min-width: 760px) {
+      .phone-shell {
+        max-width: 920px;
+        grid-template-columns: .9fr 1.1fr;
+        align-items: start;
+      }
+
+      .topbar,
+      .screen {
+        grid-column: 1 / -1;
+      }
+
+      .screen.active#auth-screen {
+        grid-template-columns: .95fr .8fr;
+        align-items: start;
+      }
+
+      .screen.active#setup-screen {
+        grid-template-columns: .82fr 1.18fr;
+        align-items: start;
+      }
+
+      .screen.active#dashboard-screen {
+        grid-template-columns: .82fr 1.18fr;
+        align-items: start;
+      }
+
+      .screen.active#analytics-screen {
+        grid-template-columns: .8fr 1.2fr;
+        align-items: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="phone-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <h1>Твой челлендж</h1>
+            <p id="user-caption">Личный трекер прогресса</p>
+          </div>
+        </div>
+        <div class="menu-wrap" id="app-menu-wrap" hidden>
+          <button class="menu-button" id="menu-button" type="button" aria-label="Открыть меню" aria-expanded="false"><span></span></button>
+          <div class="menu-panel" id="menu-panel">
+            <button id="menu-challenges" type="button">Все челленджи</button>
+            <button id="menu-new" type="button">Создать новый</button>
+            <button id="menu-analytics" type="button" hidden>Аналитика</button>
+            <button id="menu-edit" type="button" hidden>Редактировать челлендж</button>
+            <button id="menu-logout" type="button">Выйти</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="screen active" id="auth-screen">
+        <div class="hero-card card">
+          <p class="eyebrow">Начни спокойно</p>
+          <h2 class="headline">Собери день в проценты.</h2>
+          <p class="lead">Создай челлендж, добавь цели без времени и цели с часами. Отмечай день по ходу дела, а приложение сохранит прогресс.</p>
+        </div>
+
+        <div class="card">
+          <div class="auth-toggle" aria-label="Режим входа">
+            <button class="active" id="login-tab" type="button">Вход</button>
+            <button id="register-tab" type="button">Регистрация</button>
+          </div>
+          <form class="form" id="auth-form">
+            <label class="field">
+              <span>Email</span>
+              <input class="input" id="auth-email" type="email" autocomplete="email" required>
+            </label>
+            <label class="field">
+              <span>Пароль</span>
+              <input class="input" id="auth-password" type="password" autocomplete="current-password" required minlength="6">
+            </label>
+            <button class="primary-button" id="auth-submit" type="submit">Войти</button>
+            <div class="state-line" id="auth-message"></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="screen" id="setup-screen">
+        <div class="card">
+          <p class="eyebrow">Новый старт</p>
+          <h2 class="headline" id="setup-title">Создай челлендж.</h2>
+          <p class="lead" id="setup-lead">Все цели получают одинаковый вес. Если целей десять, каждая закрытая цель добавляет 10% к дню.</p>
+          <div class="action-row" id="setup-actions" hidden>
+            <button class="secondary-button" id="setup-all-challenges" type="button">Все челленджи</button>
+            <button class="secondary-button" id="setup-latest-challenge" type="button">Последний</button>
+          </div>
+        </div>
+
+        <form class="card form" id="challenge-form">
+          <label class="field">
+            <span>Название челленджа</span>
+            <input class="input" id="challenge-title" type="text" placeholder="Например: Майский рывок" required>
+          </label>
+          <label class="field">
+            <span>Количество дней</span>
+            <input class="input" id="challenge-days" type="number" min="1" max="365" value="30" required>
+          </label>
+
+          <div class="goal-builder">
+            <div class="section-title">
+              <div>
+                <h3>Цели без часов</h3>
+                <p>Отмечаются галочкой.</p>
+              </div>
+            </div>
+            <div class="goal-input-row">
+              <label class="field">
+                <span>Название цели</span>
+                <input class="input" id="simple-goal-input" type="text" placeholder="Подъем в 8 утра">
+              </label>
+              <button class="icon-button" id="add-simple-goal" type="button" aria-label="Добавить цель">+</button>
+            </div>
+            <div class="list" id="simple-goals-list"></div>
+          </div>
+
+          <div class="goal-builder">
+            <div class="section-title">
+              <div>
+                <h3>Цели с часами</h3>
+                <p>Закрываются, когда набрано нужное время.</p>
+              </div>
+            </div>
+            <div class="goal-input-row time-row">
+              <label class="field">
+                <span>Название цели</span>
+                <input class="input" id="time-goal-input" type="text" placeholder="Wizard Elements">
+              </label>
+              <label class="field">
+                <span>Часы</span>
+                <input class="input" id="time-goal-hours" type="number" min="0.5" max="24" step="0.5" value="2">
+              </label>
+              <button class="icon-button" id="add-time-goal" type="button" aria-label="Добавить цель">+</button>
+            </div>
+            <div class="list" id="time-goals-list"></div>
+          </div>
+
+          <button class="primary-button" id="challenge-submit" type="submit">Начать челлендж</button>
+          <div class="state-line" id="setup-message"></div>
+        </form>
+      </section>
+
+      <section class="screen" id="challenges-screen">
+        <div class="card">
+          <p class="eyebrow">Твои челленджи</p>
+          <h2 class="headline">Выбери, что открыть.</h2>
+          <p class="lead">После входа приложение открывает самый свежий челлендж, но здесь можно переключиться на любой другой.</p>
+          <div class="action-row">
+            <button class="secondary-button" id="challenges-new" type="button">Создать новый</button>
+            <button class="secondary-button" id="challenges-current" type="button">Текущий</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="challenge-list" id="challenges-list"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="dashboard-screen">
+        <div class="progress-card">
+          <div class="progress-head">
+            <div>
+              <h2 id="challenge-name">Сегодня</h2>
+              <p id="challenge-meta">День челленджа</p>
+            </div>
+            <div class="percent" id="progress-percent">0%</div>
+          </div>
+          <div class="progress-stack">
+            <div class="progress-row">
+              <div class="progress-label">
+                <span>Сегодня</span>
+                <span id="today-progress-label">0%</span>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+            </div>
+            <div class="progress-row">
+              <div class="progress-label">
+                <span>Весь челлендж</span>
+                <span id="overall-progress-label">0%</span>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <div class="progress-fill overall" id="overall-progress-fill"></div>
+              </div>
+            </div>
+          </div>
+          <p class="lead" id="progress-caption"></p>
+          <div class="state-line" id="dashboard-message"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>Простые цели</h2>
+            </div>
+          </div>
+          <div class="list" id="simple-dashboard-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>Цели по часам</h2>
+            </div>
+          </div>
+          <div class="list" id="time-dashboard-list"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="analytics-screen">
+        <div class="card">
+          <p class="eyebrow">Аналитика</p>
+          <h2 class="headline" id="analytics-title">Итоги челленджа.</h2>
+          <p class="lead" id="analytics-lead"></p>
+          <button class="secondary-button" id="analytics-today" type="button" hidden>Сегодня</button>
+        </div>
+
+        <div class="card">
+          <div class="metric-grid" id="analytics-metrics"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>Календарь</h2>
+            </div>
+          </div>
+          <div class="day-grid" id="analytics-days"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>Разбор целей</h2>
+            </div>
+          </div>
+          <div class="list" id="analytics-goals"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>Что подтянуть</h2>
+            </div>
+          </div>
+          <div class="insight-list" id="analytics-insights"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="loading" id="loading"><div class="loader"></div></div>
+
+  <script>
+    const TOKEN_KEY = 'tvoy_challenge_session';
+    const TOKEN_MAX_AGE = 60 * 60 * 24 * 30;
+    const REFRESH_INTERVAL_MS = 8000;
+    const state = {
+      mode: 'login',
+      sessionToken: getStoredToken(),
+      app: null,
+      draftSimpleGoals: [],
+      draftTimeGoals: [],
+      editingChallengeId: '',
+      activeScreen: 'auth',
+      pendingSaves: 0,
+      pendingGoalUpdates: {},
+      goalRequestSeq: {},
+      currentChallengeId: '',
+      challengeOpenSeq: 0,
+      refreshTimer: null,
+      refreshInFlight: false,
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+
+    const els = {
+      loading: $('#loading'),
+      menuWrap: $('#app-menu-wrap'),
+      menuButton: $('#menu-button'),
+      menuPanel: $('#menu-panel'),
+      menuChallenges: $('#menu-challenges'),
+      menuNew: $('#menu-new'),
+      menuAnalytics: $('#menu-analytics'),
+      menuEdit: $('#menu-edit'),
+      menuLogout: $('#menu-logout'),
+      userCaption: $('#user-caption'),
+      authScreen: $('#auth-screen'),
+      setupScreen: $('#setup-screen'),
+      challengesScreen: $('#challenges-screen'),
+      dashboardScreen: $('#dashboard-screen'),
+      analyticsScreen: $('#analytics-screen'),
+      loginTab: $('#login-tab'),
+      registerTab: $('#register-tab'),
+      authForm: $('#auth-form'),
+      authSubmit: $('#auth-submit'),
+      authEmail: $('#auth-email'),
+      authPassword: $('#auth-password'),
+      authMessage: $('#auth-message'),
+      challengeForm: $('#challenge-form'),
+      setupTitle: $('#setup-title'),
+      setupLead: $('#setup-lead'),
+      challengeSubmit: $('#challenge-submit'),
+      challengeTitle: $('#challenge-title'),
+      challengeDays: $('#challenge-days'),
+      simpleGoalInput: $('#simple-goal-input'),
+      timeGoalInput: $('#time-goal-input'),
+      timeGoalHours: $('#time-goal-hours'),
+      simpleGoalsList: $('#simple-goals-list'),
+      timeGoalsList: $('#time-goals-list'),
+      setupMessage: $('#setup-message'),
+      setupActions: $('#setup-actions'),
+      setupAllChallenges: $('#setup-all-challenges'),
+      setupLatestChallenge: $('#setup-latest-challenge'),
+      challengesList: $('#challenges-list'),
+      challengesNew: $('#challenges-new'),
+      challengesCurrent: $('#challenges-current'),
+      challengeName: $('#challenge-name'),
+      challengeMeta: $('#challenge-meta'),
+      progressPercent: $('#progress-percent'),
+      progressFill: $('#progress-fill'),
+      todayProgressLabel: $('#today-progress-label'),
+      overallProgressLabel: $('#overall-progress-label'),
+      overallProgressFill: $('#overall-progress-fill'),
+      progressCaption: $('#progress-caption'),
+      dashboardMessage: $('#dashboard-message'),
+      simpleDashboardList: $('#simple-dashboard-list'),
+      timeDashboardList: $('#time-dashboard-list'),
+      analyticsTitle: $('#analytics-title'),
+      analyticsLead: $('#analytics-lead'),
+      analyticsToday: $('#analytics-today'),
+      analyticsMetrics: $('#analytics-metrics'),
+      analyticsDays: $('#analytics-days'),
+      analyticsGoals: $('#analytics-goals'),
+      analyticsInsights: $('#analytics-insights'),
+    };
+
+    boot();
+
+    function boot() {
+      bindEvents();
+      renderDraftGoals();
+      if (state.sessionToken) {
+        setLoading(true);
+        server('apiGetSession', state.sessionToken)
+          .then(appState => handleAppState(appState))
+          .catch(() => {
+            forgetToken();
+            state.sessionToken = '';
+            showScreen('auth');
+          })
+          .finally(() => setLoading(false));
+      } else {
+        showScreen('auth');
+      }
+    }
+
+    function bindEvents() {
+      els.loginTab.addEventListener('click', () => setAuthMode('login'));
+      els.registerTab.addEventListener('click', () => setAuthMode('register'));
+      els.authForm.addEventListener('submit', handleAuth);
+      els.menuButton.addEventListener('click', toggleMenu);
+      els.menuChallenges.addEventListener('click', () => {
+        closeMenu();
+        showChallenges();
+      });
+      els.menuNew.addEventListener('click', () => {
+        closeMenu();
+        startNewChallenge();
+      });
+      els.menuAnalytics.addEventListener('click', () => {
+        closeMenu();
+        showAnalytics();
+      });
+      els.menuEdit.addEventListener('click', () => {
+        closeMenu();
+        startEditChallenge();
+      });
+      els.menuLogout.addEventListener('click', () => {
+        closeMenu();
+        handleLogout();
+      });
+      document.addEventListener('click', event => {
+        if (!els.menuWrap.contains(event.target)) closeMenu();
+      });
+      $('#add-simple-goal').addEventListener('click', addSimpleGoal);
+      $('#add-time-goal').addEventListener('click', addTimeGoal);
+      els.setupAllChallenges.addEventListener('click', showChallenges);
+      els.setupLatestChallenge.addEventListener('click', openLatestChallenge);
+      els.challengesNew.addEventListener('click', startNewChallenge);
+      els.challengesCurrent.addEventListener('click', openCurrentChallenge);
+      els.analyticsToday.addEventListener('click', () => showScreen('dashboard'));
+      els.simpleGoalInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addSimpleGoal();
+        }
+      });
+      els.timeGoalInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addTimeGoal();
+        }
+      });
+      els.challengeForm.addEventListener('submit', handleCreateChallenge);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshCurrentChallenge();
+      });
+      window.addEventListener('focus', refreshCurrentChallenge);
+    }
+
+    function setAuthMode(mode) {
+      state.mode = mode;
+      els.loginTab.classList.toggle('active', mode === 'login');
+      els.registerTab.classList.toggle('active', mode === 'register');
+      els.authSubmit.textContent = mode === 'login' ? 'Войти' : 'Зарегистрироваться';
+      els.authPassword.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+      setMessage(els.authMessage, '');
+    }
+
+    function handleAuth(event) {
+      event.preventDefault();
+      setMessage(els.authMessage, '');
+      setLoading(true);
+      const method = state.mode === 'login' ? 'apiLogin' : 'apiRegister';
+      server(method, {
+        email: els.authEmail.value,
+        password: els.authPassword.value,
+      })
+        .then(appState => handleAppState(appState))
+        .catch(error => setMessage(els.authMessage, error.message, true))
+        .finally(() => setLoading(false));
+    }
+
+    function handleLogout() {
+      const token = state.sessionToken;
+      stopAutoRefresh();
+      forgetToken();
+      state.sessionToken = '';
+      state.app = null;
+      state.currentChallengeId = '';
+      showScreen('auth');
+      if (token) server('apiLogout', token).catch(() => {});
+    }
+
+    function addSimpleGoal() {
+      const title = els.simpleGoalInput.value.trim();
+      if (!title) return;
+      state.draftSimpleGoals.push({ title });
+      els.simpleGoalInput.value = '';
+      renderDraftGoals();
+    }
+
+    function addTimeGoal() {
+      const title = els.timeGoalInput.value.trim();
+      const targetHours = Number(els.timeGoalHours.value || 0);
+      if (!title || targetHours <= 0) return;
+      state.draftTimeGoals.push({ title, targetHours });
+      els.timeGoalInput.value = '';
+      els.timeGoalHours.value = '2';
+      renderDraftGoals();
+    }
+
+    function removeDraftGoal(type, index) {
+      if (type === 'simple') state.draftSimpleGoals.splice(index, 1);
+      if (type === 'time') state.draftTimeGoals.splice(index, 1);
+      renderDraftGoals();
+    }
+
+    function updateDraftGoal(type, index, field, value) {
+      const collection = type === 'simple' ? state.draftSimpleGoals : state.draftTimeGoals;
+      if (!collection[index]) return;
+      collection[index][field] = field === 'targetHours' ? Number(value || 0) : value;
+      renderDraftGoals();
+    }
+
+    function moveDraftGoal(type, index, direction) {
+      const collection = type === 'simple' ? state.draftSimpleGoals : state.draftTimeGoals;
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= collection.length) return;
+      const item = collection[index];
+      collection.splice(index, 1);
+      collection.splice(nextIndex, 0, item);
+      renderDraftGoals();
+    }
+
+    function renderDraftGoals() {
+      els.simpleGoalsList.innerHTML = state.draftSimpleGoals.length
+        ? state.draftSimpleGoals.map((goal, index) => draftGoalEditor('simple', goal, index)).join('')
+        : '<div class="empty">Добавь первую цель без часов</div>';
+      els.timeGoalsList.innerHTML = state.draftTimeGoals.length
+        ? state.draftTimeGoals.map((goal, index) => draftGoalEditor('time', goal, index)).join('')
+        : '<div class="empty">Добавь первую цель с часами</div>';
+    }
+
+    function draftGoalEditor(type, goal, index) {
+      const isTime = type === 'time';
+      return `
+        <div class="pill-item">
+          <div class="${isTime ? 'draft-time-row' : 'draft-edit'}">
+            <input class="input" type="text" value="${escapeAttribute(goal.title)}" onchange="updateDraftGoal('${type}', ${index}, 'title', this.value)">
+            ${isTime ? `<input class="input" type="number" min="0.5" max="24" step="0.5" value="${Number(goal.targetHours || 0)}" onchange="updateDraftGoal('${type}', ${index}, 'targetHours', this.value)">` : ''}
+          </div>
+          <div class="draft-actions">
+            <button class="mini-button" type="button" onclick="moveDraftGoal('${type}', ${index}, -1)" aria-label="Выше">↑</button>
+            <button class="mini-button" type="button" onclick="moveDraftGoal('${type}', ${index}, 1)" aria-label="Ниже">↓</button>
+            <button class="remove-button" type="button" onclick="removeDraftGoal('${type}', ${index})" aria-label="Удалить">x</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleCreateChallenge(event) {
+      event.preventDefault();
+      setMessage(els.setupMessage, '');
+      if (!state.draftSimpleGoals.length && !state.draftTimeGoals.length) {
+        setMessage(els.setupMessage, 'Добавь хотя бы одну цель.', true);
+        return;
+      }
+      setLoading(true);
+      const payload = {
+        title: els.challengeTitle.value,
+        durationDays: Number(els.challengeDays.value),
+        simpleGoals: state.draftSimpleGoals,
+        timeGoals: state.draftTimeGoals,
+      };
+      const request = state.editingChallengeId
+        ? server('apiRestartChallenge', state.sessionToken, state.editingChallengeId, payload)
+        : server('apiCreateChallenge', state.sessionToken, payload);
+      request
+        .then(appState => {
+          resetChallengeForm();
+          handleAppState(appState);
+        })
+        .catch(error => setMessage(els.setupMessage, error.message, true))
+        .finally(() => setLoading(false));
+    }
+
+    function handleAppState(appState) {
+      if (!appState || typeof appState !== 'object') {
+        throw new Error('Apps Script вернул пустой ответ. Обнови развертывание и попробуй еще раз.');
+      }
+      appState = mergePendingGoalUpdates(appState);
+      state.app = appState;
+      state.sessionToken = appState.sessionToken;
+      state.currentChallengeId = appState.challenge ? appState.challenge.challengeId : '';
+      rememberToken(appState.sessionToken);
+      els.menuWrap.hidden = false;
+      els.userCaption.textContent = appState.user.email;
+      updateMenuState();
+      renderChallenges(appState);
+      els.setupActions.hidden = !(appState.challenges && appState.challenges.length);
+      if (!appState.challenge) {
+        showScreen('setup');
+        return;
+      }
+      renderDashboard(appState);
+      if (appState.challenge.isFinished) {
+        showAnalytics();
+      } else {
+        showScreen('dashboard');
+      }
+      startAutoRefresh();
+    }
+
+    function renderChallenges(appState) {
+      const challenges = appState.challenges || [];
+      els.challengesList.innerHTML = challenges.length
+        ? challenges.map(renderChallengeItem).join('')
+        : '<div class="empty">Пока нет челленджей</div>';
+    }
+
+    function renderChallengeItem(challenge) {
+      const activeClass = challenge.isCurrent ? ' active' : '';
+      return `
+        <div class="challenge-row">
+          <button class="challenge-item${activeClass}" type="button" onclick="openChallenge('${challenge.challengeId}')">
+            <strong>${escapeHtml(challenge.title)}</strong>
+            <span>День ${challenge.dayNumber} из ${challenge.durationDays}. Целей: ${challenge.totalGoals}. Старт: ${escapeHtml(formatDate(challenge.startDate))}</span>
+          </button>
+          <button class="delete-challenge" type="button" onclick="deleteChallenge('${challenge.challengeId}')" aria-label="Удалить челлендж">×</button>
+        </div>
+      `;
+    }
+
+    function renderDashboard(appState) {
+      const challenge = appState.challenge;
+      const progress = appState.progress;
+      const overallProgress = appState.overallProgress || { percent: 0, elapsedDays: 0, durationDays: challenge.durationDays };
+      els.challengeName.textContent = challenge.title;
+      els.challengeMeta.textContent = `День ${challenge.dayNumber} из ${challenge.durationDays}`;
+      els.progressPercent.textContent = `${progress.percent}%`;
+      els.progressFill.style.width = `${progress.percent}%`;
+      els.todayProgressLabel.textContent = `${progress.percent}%`;
+      els.overallProgressLabel.textContent = `${overallProgress.percent}%`;
+      els.overallProgressFill.style.width = `${overallProgress.percent}%`;
+      els.progressCaption.textContent = `${progress.completed} из ${progress.total} целей закрыто сегодня. Общий прогресс: ${overallProgress.percent}%`;
+
+      const simpleGoals = appState.goals.filter(goal => goal.goalType === 'simple');
+      const timeGoals = appState.goals.filter(goal => goal.goalType === 'time');
+      els.simpleDashboardList.innerHTML = simpleGoals.length
+        ? simpleGoals.map(renderSimpleGoal).join('')
+        : '<div class="empty">Целей без часов нет</div>';
+      els.timeDashboardList.innerHTML = timeGoals.length
+        ? timeGoals.map(renderTimeGoal).join('')
+        : '<div class="empty">Целей с часами нет</div>';
+    }
+
+    function renderAnalytics(appState) {
+      const challenge = appState.challenge;
+      const analytics = appState.analytics;
+      if (!challenge || !analytics) return;
+      const summary = analytics.summary || {};
+      els.analyticsTitle.textContent = challenge.title;
+      els.analyticsLead.textContent = challenge.isFinished
+        ? `Челлендж завершён. ${summary.elapsedDays || 0} из ${summary.durationDays || challenge.durationDays} дней в истории.`
+        : `День ${challenge.dayNumber} из ${challenge.durationDays}. Аналитика обновляется по уже пройденным дням.`;
+      els.analyticsToday.hidden = Boolean(challenge.isFinished);
+      els.analyticsMetrics.innerHTML = [
+        metric('Общий прогресс', `${summary.overallPercent || 0}%`),
+        metric('Средний день', `${summary.averageDayPercent || 0}%`),
+        metric('Дней на 100%', String(summary.completedDays || 0)),
+        metric('Дней ниже 50%', String(summary.lowDays || 0)),
+      ].join('');
+      els.analyticsDays.innerHTML = (analytics.days || []).map(renderAnalyticsDay).join('');
+      els.analyticsGoals.innerHTML = (analytics.goals || []).length
+        ? analytics.goals.map(renderAnalyticsGoal).join('')
+        : '<div class="empty">Целей пока нет</div>';
+      els.analyticsInsights.innerHTML = renderInsights(summary);
+    }
+
+    function metric(label, value) {
+      return `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`;
+    }
+
+    function renderAnalyticsDay(day) {
+      const tone = day.isFuture ? 'future' : day.percent === 100 ? 'good' : day.percent >= 50 ? 'mid' : 'low';
+      return `
+        <div class="day-cell ${tone}" title="${escapeAttribute(formatDate(day.date))}: ${day.percent}%">
+          <span>${day.dayNumber}</span>
+          <small>${day.isFuture ? '' : `${day.percent}%`}</small>
+        </div>
+      `;
+    }
+
+    function renderAnalyticsGoal(goal) {
+      const meta = goal.goalType === 'time'
+        ? `Факт ${formatHours(goal.actualHours)} из ${formatHours(goal.plannedHours)}`
+        : `${goal.completedCount} из ${goal.elapsedDays} дней`;
+      return `
+        <article class="analytics-goal">
+          <div class="analytics-goal-head">
+            <span>${escapeHtml(goal.title)}</span>
+            <span>${goal.completionPercent}%</span>
+          </div>
+          <div class="mini-track"><div class="mini-fill" style="width:${goal.completionPercent}%"></div></div>
+          <div class="state-line">${escapeHtml(meta)}</div>
+        </article>
+      `;
+    }
+
+    function renderInsights(summary) {
+      const insights = [];
+      if (summary.strongestGoal) insights.push(`Стабильнее всего: ${summary.strongestGoal.title} (${summary.strongestGoal.completionPercent}%).`);
+      if (summary.weakestGoal) insights.push(`Больше всего проседает: ${summary.weakestGoal.title} (${summary.weakestGoal.completionPercent}%).`);
+      if (summary.bestDay) insights.push(`Лучший день: ${formatDate(summary.bestDay.date)}, ${summary.bestDay.percent}%.`);
+      if (summary.worstDay) insights.push(`Самый слабый день: ${formatDate(summary.worstDay.date)}, ${summary.worstDay.percent}%.`);
+      if (!insights.length) insights.push('Данных пока мало. Отметь хотя бы один день, и здесь появятся выводы.');
+      return insights.map(text => `<div class="insight">${escapeHtml(text)}</div>`).join('');
+    }
+
+    function renderSimpleGoal(goal) {
+      return `
+        <article class="goal-card">
+          <div class="goal-main">
+            <div class="goal-title">
+              <strong>${escapeHtml(goal.title)}</strong>
+            </div>
+            <button class="check ${goal.isCompleted ? 'done' : ''}" type="button" onclick="toggleSimple('${goal.goalId}', ${goal.isCompleted ? 'false' : 'true'})" aria-label="Отметить цель"></button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderTimeGoal(goal) {
+      const options = buildTimeOptions();
+      return `
+        <article class="goal-card">
+          <div class="goal-main">
+            <div class="goal-title">
+              <strong>${escapeHtml(goal.title)}</strong>
+              <span class="goal-target">${formatHours(goal.targetHours)}</span>
+            </div>
+            <button class="check ${goal.isCompleted ? 'done' : ''}" type="button" aria-label="Статус цели"></button>
+          </div>
+          <label class="time-select-wrap">
+            <span>Время</span>
+            <select class="time-select" onchange="setHours('${goal.goalId}', Number(this.value))">
+              ${options.map(value => `
+                <option value="${value}" ${Number(goal.actualHours) === value ? 'selected' : ''}>${formatHours(value)}</option>
+              `).join('')}
+            </select>
+          </label>
+        </article>
+      `;
+    }
+
+    function toggleSimple(goalId, isChecked) {
+      setMessage(els.dashboardMessage, '');
+      const patch = {
+        isChecked,
+        isCompleted: isChecked,
+      };
+      const requestSeq = queueGoalUpdate(goalId, patch);
+      state.pendingSaves += 1;
+      server('apiUpdateSimpleEntry', state.sessionToken, { goalId, isChecked })
+        .then(appState => handleGoalSaveSuccess(goalId, requestSeq, appState))
+        .catch(error => handleGoalSaveError(goalId, requestSeq, error))
+        .finally(() => {
+          state.pendingSaves = Math.max(0, state.pendingSaves - 1);
+        });
+    }
+
+    function setHours(goalId, actualHours) {
+      const goal = state.app.goals.find(item => item.goalId === goalId);
+      if (!goal) return;
+      setMessage(els.dashboardMessage, '');
+      const patch = {
+        actualHours,
+        isCompleted: Number(actualHours || 0) >= Number(goal.targetHours || 0),
+      };
+      const requestSeq = queueGoalUpdate(goalId, patch);
+      state.pendingSaves += 1;
+      server('apiUpdateTimeEntry', state.sessionToken, { goalId, actualHours })
+        .then(appState => handleGoalSaveSuccess(goalId, requestSeq, appState))
+        .catch(error => handleGoalSaveError(goalId, requestSeq, error))
+        .finally(() => {
+          state.pendingSaves = Math.max(0, state.pendingSaves - 1);
+        });
+    }
+
+    function queueGoalUpdate(goalId, patch) {
+      const nextSeq = (state.goalRequestSeq[goalId] || 0) + 1;
+      state.goalRequestSeq[goalId] = nextSeq;
+      state.pendingGoalUpdates[goalId] = { patch, seq: nextSeq };
+      applyLocalGoalUpdate(goalId, patch);
+      return nextSeq;
+    }
+
+    function handleGoalSaveSuccess(goalId, requestSeq, appState) {
+      if (!isLatestGoalRequest(goalId, requestSeq)) return;
+      delete state.pendingGoalUpdates[goalId];
+      handleAppState(appState);
+    }
+
+    function handleGoalSaveError(goalId, requestSeq, error) {
+      if (!isLatestGoalRequest(goalId, requestSeq)) return;
+      delete state.pendingGoalUpdates[goalId];
+      setMessage(els.dashboardMessage, error.message || 'Не удалось сохранить. Сейчас обновлю данные.', true);
+      refreshCurrentChallenge(true);
+    }
+
+    function isLatestGoalRequest(goalId, requestSeq) {
+      return state.goalRequestSeq[goalId] === requestSeq;
+    }
+
+    function applyLocalGoalUpdate(goalId, patch) {
+      if (!state.app || !state.app.goals) return;
+      state.app.goals = state.app.goals.map(goal => {
+        if (goal.goalId !== goalId) return goal;
+        return Object.assign({}, goal, patch);
+      });
+      recalculateProgress();
+      renderDashboard(state.app);
+    }
+
+    function recalculateProgress() {
+      state.app.progress = calculateProgress(state.app.goals || []);
+    }
+
+    function calculateProgress(goals) {
+      const total = goals.length;
+      const completed = goals.filter(goal => goal.isCompleted).length;
+      return {
+        completed,
+        total,
+        percent: total ? Math.round((completed / total) * 100) : 0,
+      };
+    }
+
+    function mergePendingGoalUpdates(appState) {
+      const pendingGoalIds = Object.keys(state.pendingGoalUpdates);
+      if (!pendingGoalIds.length || !appState.goals) return appState;
+      const pending = state.pendingGoalUpdates;
+      appState.goals = appState.goals.map(goal => {
+        const pendingUpdate = pending[goal.goalId];
+        if (!pendingUpdate) return goal;
+        return Object.assign({}, goal, pendingUpdate.patch);
+      });
+      appState.progress = calculateProgress(appState.goals);
+      if (appState.challenges && appState.challenge) {
+        appState.challenges = appState.challenges.map(challenge => (
+          challenge.challengeId === appState.challenge.challengeId
+            ? Object.assign({}, challenge, { isCurrent: true })
+            : Object.assign({}, challenge, { isCurrent: false })
+        ));
+      }
+      return appState;
+    }
+
+    function showChallenges() {
+      if (state.app) renderChallenges(state.app);
+      showScreen('challenges');
+      refreshCurrentChallenge();
+    }
+
+    function showAnalytics() {
+      if (!state.app || !state.app.challenge) return;
+      renderAnalytics(state.app);
+      showScreen('analytics');
+    }
+
+    function startNewChallenge() {
+      resetChallengeForm();
+      setMessage(els.setupMessage, '');
+      showScreen('setup');
+      setTimeout(() => els.challengeTitle.focus(), 60);
+    }
+
+    function startEditChallenge() {
+      if (!state.app || !state.app.challenge) return;
+      stopAutoRefresh();
+      state.editingChallengeId = state.app.challenge.challengeId;
+      els.setupTitle.textContent = 'Редактируй челлендж.';
+      els.setupLead.textContent = 'После сохранения челлендж начнется заново с сегодняшней даты, а текущие отметки сбросятся.';
+      els.challengeSubmit.textContent = 'Перезапустить челлендж';
+      els.challengeTitle.value = state.app.challenge.title || '';
+      els.challengeDays.value = state.app.challenge.durationDays || 30;
+      state.draftSimpleGoals = (state.app.goals || [])
+        .filter(goal => goal.goalType === 'simple')
+        .map(goal => ({ title: goal.title }));
+      state.draftTimeGoals = (state.app.goals || [])
+        .filter(goal => goal.goalType === 'time')
+        .map(goal => ({ title: goal.title, targetHours: Number(goal.targetHours || 0) }));
+      renderDraftGoals();
+      setMessage(els.setupMessage, '');
+      showScreen('setup');
+      setTimeout(() => els.challengeTitle.focus(), 60);
+    }
+
+    function resetChallengeForm() {
+      state.editingChallengeId = '';
+      state.draftSimpleGoals = [];
+      state.draftTimeGoals = [];
+      els.challengeForm.reset();
+      els.challengeDays.value = '30';
+      els.setupTitle.textContent = 'Создай челлендж.';
+      els.setupLead.textContent = 'Все цели получают одинаковый вес. Если целей десять, каждая закрытая цель добавляет 10% к дню.';
+      els.challengeSubmit.textContent = 'Начать челлендж';
+      renderDraftGoals();
+      setMessage(els.setupMessage, '');
+    }
+
+    function deleteChallenge(challengeId) {
+      const challenge = state.app && state.app.challenges
+        ? state.app.challenges.find(item => item.challengeId === challengeId)
+        : null;
+      const title = challenge ? challenge.title : 'этот челлендж';
+      if (!confirm(`Удалить челлендж «${title}»? Это действие нельзя отменить.`)) return;
+      stopAutoRefresh();
+      setLoading(true);
+      server('apiDeleteChallenge', state.sessionToken, challengeId, state.currentChallengeId)
+        .then(appState => {
+          state.currentChallengeId = appState.challenge ? appState.challenge.challengeId : '';
+          handleAppState(appState);
+        })
+        .catch(error => setMessage(els.setupMessage, error.message, true))
+        .finally(() => setLoading(false));
+    }
+
+    function openLatestChallenge() {
+      const latest = state.app && state.app.challenges && state.app.challenges[0];
+      if (latest) openChallenge(latest.challengeId);
+    }
+
+    function openCurrentChallenge() {
+      if (state.app && state.app.challenge) {
+        showScreen('dashboard');
+        return;
+      }
+      openLatestChallenge();
+    }
+
+    function openChallenge(challengeId) {
+      stopAutoRefresh();
+      state.currentChallengeId = challengeId;
+      const openSeq = ++state.challengeOpenSeq;
+      setLoading(true);
+      server('apiOpenChallenge', state.sessionToken, challengeId)
+        .then(appState => {
+          if (openSeq !== state.challengeOpenSeq) return;
+          if (!appState || !appState.challenge || appState.challenge.challengeId !== state.currentChallengeId) return;
+          handleAppState(appState);
+        })
+        .catch(error => setMessage(els.setupMessage, error.message, true))
+        .finally(() => setLoading(false));
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      state.refreshTimer = setInterval(refreshCurrentChallenge, REFRESH_INTERVAL_MS);
+    }
+
+    function stopAutoRefresh() {
+      if (!state.refreshTimer) return;
+      clearInterval(state.refreshTimer);
+      state.refreshTimer = null;
+    }
+
+    function refreshCurrentChallenge(force) {
+      const challengeId = state.currentChallengeId || (state.app && state.app.challenge && state.app.challenge.challengeId);
+      if (!state.sessionToken || !challengeId) return;
+      if (!force && (document.hidden || state.pendingSaves > 0 || state.refreshInFlight)) return;
+      state.refreshInFlight = true;
+      server('apiOpenChallenge', state.sessionToken, challengeId)
+        .then(appState => applyRemoteState(appState))
+        .catch(() => {})
+        .finally(() => {
+          state.refreshInFlight = false;
+        });
+    }
+
+    function applyRemoteState(appState) {
+      if (!appState || typeof appState !== 'object') return;
+      if (state.currentChallengeId && (!appState.challenge || appState.challenge.challengeId !== state.currentChallengeId)) return;
+      appState = mergePendingGoalUpdates(appState);
+      state.app = appState;
+      state.sessionToken = appState.sessionToken;
+      state.currentChallengeId = appState.challenge ? appState.challenge.challengeId : state.currentChallengeId;
+      rememberToken(appState.sessionToken);
+      renderChallenges(appState);
+      els.setupActions.hidden = !(appState.challenges && appState.challenges.length);
+      if (state.activeScreen === 'dashboard' && appState.challenge) renderDashboard(appState);
+      if (state.activeScreen === 'analytics' && appState.challenge) renderAnalytics(appState);
+      if (state.activeScreen === 'challenges') renderChallenges(appState);
+    }
+
+    function showScreen(name) {
+      state.activeScreen = name;
+      els.authScreen.classList.toggle('active', name === 'auth');
+      els.setupScreen.classList.toggle('active', name === 'setup');
+      els.challengesScreen.classList.toggle('active', name === 'challenges');
+      els.dashboardScreen.classList.toggle('active', name === 'dashboard');
+      els.analyticsScreen.classList.toggle('active', name === 'analytics');
+      els.menuWrap.hidden = name === 'auth';
+      if (name === 'auth') els.userCaption.textContent = 'Личный трекер прогресса';
+      if (name === 'auth') {
+        closeMenu();
+        stopAutoRefresh();
+      }
+      updateMenuState();
+    }
+
+    function updateMenuState() {
+      const insideChallenge = (state.activeScreen === 'dashboard' || state.activeScreen === 'analytics') && state.app && state.app.challenge;
+      els.menuAnalytics.hidden = !insideChallenge;
+      els.menuEdit.hidden = !insideChallenge;
+    }
+
+    function toggleMenu(event) {
+      event.stopPropagation();
+      const isOpen = els.menuPanel.classList.toggle('open');
+      els.menuButton.setAttribute('aria-expanded', String(isOpen));
+    }
+
+    function closeMenu() {
+      els.menuPanel.classList.remove('open');
+      els.menuButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function setLoading(isLoading) {
+      els.loading.classList.toggle('active', isLoading);
+    }
+
+    function setMessage(element, message, isError) {
+      element.textContent = message || '';
+      element.classList.toggle('error', Boolean(isError));
+    }
+
+    function getStoredToken() {
+      return getLocalToken() || getCookieToken();
+    }
+
+    function getLocalToken() {
+      try {
+        return localStorage.getItem(TOKEN_KEY) || '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function getCookieToken() {
+      const match = document.cookie.match(new RegExp('(?:^|; )' + TOKEN_KEY + '=([^;]*)'));
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function rememberToken(token) {
+      if (!token) return;
+      try {
+        localStorage.setItem(TOKEN_KEY, token);
+      } catch (error) {}
+      document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; max-age=${TOKEN_MAX_AGE}; path=/; SameSite=Lax; Secure`;
+    }
+
+    function forgetToken() {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+      } catch (error) {}
+      document.cookie = `${TOKEN_KEY}=; max-age=0; path=/; SameSite=Lax; Secure`;
+    }
+
+    function server(method, ...args) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(error => {
+            reject(new Error(error && error.message ? error.message : String(error || 'Неизвестная ошибка Apps Script.')));
+          })[method](...args);
+      });
+    }
+
+    function formatHours(value) {
+      const number = Number(value || 0);
+      if (number === 0) return '0';
+      if (number === 0.5) return '30 минут';
+      if (number % 1 === 0.5) {
+        const whole = Math.floor(number);
+        return `${whole} ${hourWord(whole)} 30 минут`;
+      }
+      if (number === 1) return '1 час';
+      if (number > 1 && number < 5) return `${number} часа`;
+      return `${number} часов`;
+    }
+
+    function hourWord(value) {
+      if (value === 1) return 'час';
+      if (value > 1 && value < 5) return 'часа';
+      return 'часов';
+    }
+
+    function buildTimeOptions() {
+      const options = [];
+      for (let value = 0; value <= 10; value += 0.5) {
+        options.push(value);
+      }
+      return options;
+    }
+
+    function formatDate(value) {
+      const parts = String(value || '').slice(0, 10).split('-');
+      if (parts.length !== 3) return value || '';
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/`/g, '&#096;');
+    }
+
+    window.removeDraftGoal = removeDraftGoal;
+    window.updateDraftGoal = updateDraftGoal;
+    window.moveDraftGoal = moveDraftGoal;
+    window.toggleSimple = toggleSimple;
+    window.setHours = setHours;
+    window.openChallenge = openChallenge;
+    window.deleteChallenge = deleteChallenge;
+  </script>
+</body>
+</html>
