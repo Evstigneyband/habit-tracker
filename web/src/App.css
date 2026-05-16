@@ -420,6 +420,13 @@
   border-top: 1px solid #e2e8e4;
 }
 
+.draft-goal-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .draft-goals span {
   min-width: 0;
   overflow: hidden;

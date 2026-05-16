@@ -1077,7 +1077,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             onRemove={removeSimpleGoal}
             onUpdate={(goalId, field, value) => updateGoal('simple', goalId, field, value)}
             onMove={(goalId, direction) => moveGoal('simple', goalId, direction)}
-            editable={isEditing}
+            canEditContent={isEditing}
           />
         </div>
 
@@ -1109,7 +1109,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             onUpdate={(goalId, field, value) => updateGoal('time', goalId, field, value)}
             onMove={(goalId, direction) => moveGoal('time', goalId, direction)}
             withHours
-            editable={isEditing}
+            canEditContent={isEditing}
           />
         </div>
 
@@ -1122,14 +1122,14 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
   )
 }
 
-function DraftGoalList({ goals, onRemove, onUpdate, onMove, withHours = false, editable = false }) {
+function DraftGoalList({ goals, onRemove, onUpdate, onMove, withHours = false, canEditContent = false }) {
   if (goals.length === 0) return null
 
   return (
     <div className="draft-goals">
       {goals.map((goal, index) => (
         <div key={goal.id}>
-          {editable ? (
+          {canEditContent ? (
             <div className={withHours ? 'draft-time-edit' : 'draft-text-edit'}>
               <input value={goal.title} onChange={(event) => onUpdate(goal.id, 'title', event.target.value)} />
               {withHours && (
@@ -1143,21 +1143,19 @@ function DraftGoalList({ goals, onRemove, onUpdate, onMove, withHours = false, e
               )}
             </div>
           ) : (
-            <>
+            <div className="draft-goal-main">
               <span>{goal.title}</span>
               {withHours && <small>{formatHours(goal.targetHours)}</small>}
-            </>
-          )}
-          {editable && (
-            <div className="draft-actions">
-              <button type="button" onClick={() => onMove(goal.id, -1)} disabled={index === 0} aria-label="Выше">
-                ↑
-              </button>
-              <button type="button" onClick={() => onMove(goal.id, 1)} disabled={index === goals.length - 1} aria-label="Ниже">
-                ↓
-              </button>
             </div>
           )}
+          <div className="draft-actions">
+            <button type="button" onClick={() => onMove(goal.id, -1)} disabled={index === 0} aria-label="Выше">
+              ↑
+            </button>
+            <button type="button" onClick={() => onMove(goal.id, 1)} disabled={index === goals.length - 1} aria-label="Ниже">
+              ↓
+            </button>
+          </div>
           <button type="button" onClick={() => onRemove(goal.id)} aria-label="Убрать цель">
             <CloseIcon />
           </button>
