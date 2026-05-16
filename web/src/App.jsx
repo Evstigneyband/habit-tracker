@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
-import { createChallenge, getUserChallenges, setLastActiveChallenge } from './services/challengeService'
+import { createChallenge, getChallengeGoals, getUserChallenges, setLastActiveChallenge } from './services/challengeService'
 import './App.css'
-
-const simpleSeed = [
-  { id: 'simple-1', title: 'Правильно питаюсь', done: true },
-  { id: 'simple-2', title: 'Спорт', done: true },
-  { id: 'simple-3', title: 'Ложусь до 00:00', done: true },
-  { id: 'simple-4', title: 'Движение', done: false },
-  { id: 'simple-5', title: 'Занимаюсь здоровьем', done: true },
-]
-
-const timeSeed = [
-  { id: 'time-1', title: 'Wedding Elements', target: 10, actual: 10 },
-  { id: 'time-2', title: 'Evstignev', target: 4, actual: 4 },
-]
 
 const analyticsDays = Array.from({ length: 30 }, (_, index) => {
   const day = index + 1
@@ -31,9 +18,10 @@ function App() {
   const [challenges, setChallenges] = useState([])
   const [activeChallengeId, setActiveChallengeId] = useState('')
   const [isLoadingChallenges, setIsLoadingChallenges] = useState(false)
+  const [isLoadingGoals, setIsLoadingGoals] = useState(false)
   const [appError, setAppError] = useState('')
-  const [simpleGoals, setSimpleGoals] = useState(simpleSeed)
-  const [timeGoals, setTimeGoals] = useState(timeSeed)
+  const [simpleGoals, setSimpleGoals] = useState([])
+  const [timeGoals, setTimeGoals] = useState([])
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
 
@@ -63,6 +51,14 @@ function App() {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!activeChallengeId) {
+      return
+    }
+
+    loadGoals(activeChallengeId)
+  }, [activeChallengeId])
 
   const progress = useMemo(() => {
     const simpleDone = simpleGoals.filter((goal) => goal.done).length
@@ -126,6 +122,8 @@ function App() {
     setUserEmail('')
     setChallenges([])
     setActiveChallengeId('')
+    setSimpleGoals([])
+    setTimeGoals([])
     setIsAuthed(false)
     setAuthMode('login')
     navigate('auth')
@@ -138,6 +136,10 @@ function App() {
     try {
       const nextChallenges = await getUserChallenges(nextUserId)
       setChallenges(nextChallenges)
+      if (nextChallenges.length === 0) {
+        setSimpleGoals([])
+        setTimeGoals([])
+      }
       setActiveChallengeId((currentId) => {
         if (currentId && nextChallenges.some((challenge) => challenge.id === currentId)) return currentId
         return nextChallenges[0]?.id || ''
@@ -158,6 +160,38 @@ function App() {
       await setLastActiveChallenge(userId, challengeId)
     } catch (error) {
       setAppError(error.message)
+    }
+  }
+
+  async function loadGoals(challengeId) {
+    setIsLoadingGoals(true)
+    setAppError('')
+
+    try {
+      const goals = await getChallengeGoals(challengeId)
+      setSimpleGoals(
+        goals
+          .filter((goal) => goal.goal_type === 'simple')
+          .map((goal) => ({
+            id: goal.id,
+            title: goal.title,
+            done: false,
+          })),
+      )
+      setTimeGoals(
+        goals
+          .filter((goal) => goal.goal_type === 'time')
+          .map((goal) => ({
+            id: goal.id,
+            title: goal.title,
+            target: Number(goal.target_hours || 0),
+            actual: 0,
+          })),
+      )
+    } catch (error) {
+      setAppError(error.message)
+    } finally {
+      setIsLoadingGoals(false)
     }
   }
 
@@ -235,6 +269,7 @@ function App() {
           progress={progress}
           challenge={activeChallenge}
           appError={appError}
+          isLoadingGoals={isLoadingGoals}
           simpleGoals={simpleGoals}
           timeGoals={timeGoals}
           onToggleSimple={toggleSimpleGoal}
@@ -351,7 +386,7 @@ function AuthScreen({ authMode, setAuthMode, onSubmit, authError }) {
   )
 }
 
-function TodayScreen({ progress, challenge, appError, simpleGoals, timeGoals, onToggleSimple, onSetTime }) {
+function TodayScreen({ progress, challenge, appError, isLoadingGoals, simpleGoals, timeGoals, onToggleSimple, onSetTime }) {
   if (!challenge) {
     return (
       <section className="screen">
@@ -369,18 +404,25 @@ function TodayScreen({ progress, challenge, appError, simpleGoals, timeGoals, on
     <section className="screen">
       <ProgressCard progress={progress} challenge={challenge} />
       {appError && <p className="form-error">{appError}</p>}
+      {isLoadingGoals && <p className="muted-state">Загружаю цели...</p>}
 
-      <GoalSection title="Простые цели">
-        {simpleGoals.map((goal) => (
-          <SimpleGoalRow key={goal.id} goal={goal} onToggle={() => onToggleSimple(goal.id)} />
-        ))}
-      </GoalSection>
+      {!isLoadingGoals && (
+        <>
+          <GoalSection title="Простые цели">
+            {simpleGoals.length === 0 && <EmptyGoalState>Простых целей пока нет.</EmptyGoalState>}
+            {simpleGoals.map((goal) => (
+              <SimpleGoalRow key={goal.id} goal={goal} onToggle={() => onToggleSimple(goal.id)} />
+            ))}
+          </GoalSection>
 
-      <GoalSection title="Цели по часам">
-        {timeGoals.map((goal) => (
-          <TimeGoalRow key={goal.id} goal={goal} onChange={(value) => onSetTime(goal.id, value)} />
-        ))}
-      </GoalSection>
+          <GoalSection title="Цели по часам">
+            {timeGoals.length === 0 && <EmptyGoalState>Целей по часам пока нет.</EmptyGoalState>}
+            {timeGoals.map((goal) => (
+              <TimeGoalRow key={goal.id} goal={goal} onChange={(value) => onSetTime(goal.id, value)} />
+            ))}
+          </GoalSection>
+        </>
+      )}
     </section>
   )
 }
@@ -429,6 +471,10 @@ function GoalSection({ title, children }) {
       <div className="goal-list">{children}</div>
     </section>
   )
+}
+
+function EmptyGoalState({ children }) {
+  return <p className="empty-goal-state">{children}</p>
 }
 
 function SimpleGoalRow({ goal, onToggle }) {

@@ -424,6 +424,14 @@
   overflow: hidden;
 }
 
+.empty-goal-state {
+  margin: 0;
+  padding: 12px 10px;
+  color: #68736f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .goal-row {
   min-height: 51px;
   display: grid;
