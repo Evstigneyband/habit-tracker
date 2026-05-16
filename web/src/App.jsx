@@ -60,23 +60,27 @@ function App() {
     loadGoals(activeChallengeId)
   }, [activeChallengeId])
 
+  const activeChallenge = useMemo(
+    () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
+    [activeChallengeId, challenges],
+  )
+
   const progress = useMemo(() => {
     const simpleDone = simpleGoals.filter((goal) => goal.done).length
     const timeDone = timeGoals.filter((goal) => goal.actual >= goal.target).length
     const total = simpleGoals.length + timeGoals.length
     const done = simpleDone + timeDone
+    const todayPercent = total ? Math.round((done / total) * 100) : 0
+    const challengeDay = activeChallenge ? getChallengeDay(activeChallenge) : 1
+    const durationDays = activeChallenge?.duration_days || 1
+
     return {
       done,
       total,
-      todayPercent: total ? Math.round((done / total) * 100) : 0,
-      overallPercent: 13,
+      todayPercent,
+      overallPercent: Math.round(((challengeDay - 1 + todayPercent / 100) / durationDays) * 100),
     }
-  }, [simpleGoals, timeGoals])
-
-  const activeChallenge = useMemo(
-    () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
-    [activeChallengeId, challenges],
-  )
+  }, [activeChallenge, simpleGoals, timeGoals])
 
   function navigate(nextScreen) {
     setScreen(nextScreen)
