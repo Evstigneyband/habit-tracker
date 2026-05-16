@@ -80,6 +80,13 @@ grant select, insert, update, delete on public.challenges to authenticated;
 grant select, insert, update, delete on public.goals to authenticated;
 grant select, insert, update, delete on public.daily_entries to authenticated;
 
+do $$
+begin
+  alter publication supabase_realtime add table public.daily_entries;
+exception
+  when duplicate_object then null;
+end $$;
+
 create policy "Users can read own profile"
   on public.profiles for select
   using (auth.uid() = id);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
+import { supabase } from './lib/supabaseClient'
 import {
   createChallenge,
   deleteChallenge,
@@ -29,6 +30,7 @@ function App() {
   const [dailyEntries, setDailyEntries] = useState([])
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
+  const activeChallengeIdRef = useRef('')
 
   useEffect(() => {
     let isMounted = true
@@ -64,6 +66,36 @@ function App() {
 
     loadGoals(activeChallengeId)
   }, [activeChallengeId])
+
+  useEffect(() => {
+    activeChallengeIdRef.current = activeChallengeId
+  }, [activeChallengeId])
+
+  useEffect(() => {
+    if (!isAuthed || !userId || !activeChallengeId || !supabase) return undefined
+
+    const channel = supabase
+      .channel(`challenge:${activeChallengeId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_entries',
+          filter: `challenge_id=eq.${activeChallengeId}`,
+        },
+        () => {
+          if (activeChallengeIdRef.current === activeChallengeId) {
+            loadGoals(activeChallengeId, { silent: true })
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeChallengeId, isAuthed, userId])
 
   const activeChallenge = useMemo(
     () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
@@ -213,8 +245,8 @@ function App() {
     }
   }
 
-  async function loadGoals(challengeId) {
-    setIsLoadingGoals(true)
+  async function loadGoals(challengeId, { silent = false } = {}) {
+    if (!silent) setIsLoadingGoals(true)
     setAppError('')
 
     try {
@@ -247,7 +279,7 @@ function App() {
     } catch (error) {
       setAppError(error.message)
     } finally {
-      setIsLoadingGoals(false)
+      if (!silent) setIsLoadingGoals(false)
     }
   }
 
