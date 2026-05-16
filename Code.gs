@@ -7,7 +7,7 @@ function doGet() {
     .evaluate()
     .setTitle('Твой челлендж')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
 }
 
 function apiRegister(payload) {
@@ -35,6 +35,7 @@ function apiRegister(payload) {
     createdAt: now,
     updatedAt: now,
     lastLoginAt: now,
+    lastActiveChallengeId: '',
   };
 
   appendRecord_('Users', user);
@@ -70,6 +71,13 @@ function apiGetSession(sessionToken) {
 
 function apiOpenChallenge(sessionToken, challengeId) {
   const user = requireUser_(sessionToken);
+  rememberLastActiveChallenge_(user.userId, challengeId);
+  user.lastActiveChallengeId = challengeId;
+  return buildAppState_(user, sessionToken, challengeId);
+}
+
+function apiPreviewChallenge(sessionToken, challengeId) {
+  const user = requireUser_(sessionToken);
   return buildAppState_(user, sessionToken, challengeId);
 }
 
@@ -87,6 +95,8 @@ function apiCreateChallenge(sessionToken, payload) {
   const user = requireUser_(sessionToken);
   const normalized = normalizeChallengePayload_(payload);
   const challengeId = createChallenge_(user, normalized);
+  rememberLastActiveChallenge_(user.userId, challengeId);
+  user.lastActiveChallengeId = challengeId;
   return buildAppState_(user, sessionToken, challengeId);
 }
 
@@ -101,6 +111,8 @@ function apiRestartChallenge(sessionToken, challengeId, payload) {
   if (!existing) throw new Error('Челлендж не найден.');
 
   restartChallenge_(user, existing, normalized);
+  rememberLastActiveChallenge_(user.userId, challengeId);
+  user.lastActiveChallengeId = challengeId;
   return buildAppState_(user, sessionToken, challengeId);
 }
 
@@ -126,6 +138,13 @@ function apiDeleteChallenge(sessionToken, challengeId, selectedChallengeId) {
     }));
   deleteRowsMatching_('DailyEntries', (entry) => entry.challengeId === challengeId && entry.userId === user.userId);
   const nextSelectedChallengeId = selectedChallengeId === challengeId ? '' : selectedChallengeId;
+  if (nextSelectedChallengeId) {
+    rememberLastActiveChallenge_(user.userId, nextSelectedChallengeId);
+    user.lastActiveChallengeId = nextSelectedChallengeId;
+  } else if (user.lastActiveChallengeId === challengeId) {
+    rememberLastActiveChallenge_(user.userId, '');
+    user.lastActiveChallengeId = '';
+  }
   return buildAppState_(user, sessionToken, nextSelectedChallengeId);
 }
 
@@ -310,8 +329,9 @@ function apiUpdateTimeEntry(sessionToken, payload) {
 
 function buildAppState_(user, sessionToken, selectedChallengeId) {
   const challenges = getUserChallenges_(user.userId);
-  const challenge = selectedChallengeId
-    ? challenges.find((candidate) => candidate.challengeId === selectedChallengeId) || null
+  const preferredChallengeId = selectedChallengeId || user.lastActiveChallengeId || '';
+  const challenge = preferredChallengeId
+    ? challenges.find((candidate) => candidate.challengeId === preferredChallengeId) || challenges[0] || null
     : challenges[0] || null;
   const today = today_();
   if (!challenge) {
@@ -445,6 +465,14 @@ function getUserChallenges_(userId) {
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
+function rememberLastActiveChallenge_(userId, challengeId) {
+  ensureSheetHeader_('Users', 'lastActiveChallengeId');
+  updateRecordById_('Users', 'userId', userId, {
+    lastActiveChallengeId: challengeId || '',
+    updatedAt: nowIso_(),
+  });
+}
+
 function upsertDailyEntry_(user, goalId, entryDate, values) {
   const goal = getRecords_('Goals').rows.find((candidate) =>
     candidate.goalId === goalId &&
@@ -519,6 +547,12 @@ function appendRecord_(sheetName, record) {
   const data = getRecords_(sheetName);
   const row = data.headers.map((header) => record[header] === undefined ? '' : record[header]);
   data.sheet.appendRow(row);
+}
+
+function ensureSheetHeader_(sheetName, header) {
+  const data = getRecords_(sheetName);
+  if (data.headers.indexOf(header) !== -1) return;
+  data.sheet.getRange(1, data.headers.length + 1).setValue(header);
 }
 
 function updateRecordById_(sheetName, idField, idValue, patch) {

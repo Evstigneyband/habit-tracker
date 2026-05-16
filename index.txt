@@ -2,23 +2,26 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Твой челлендж</title>
   <style>
     :root {
       color-scheme: light;
-      --ink: #17211c;
-      --muted: #637169;
-      --line: #dbe5de;
-      --paper: #fbf8f1;
+      --ink: #111816;
+      --muted: #68736f;
+      --line: #e2e8e4;
+      --paper: #f5f7f4;
       --panel: #ffffff;
-      --mint: #91d9b8;
-      --mint-strong: #32a875;
-      --coral: #ff7a5c;
-      --sun: #ffd36a;
-      --blue: #5477e8;
-      --shadow: 0 24px 70px rgba(23, 33, 28, .14);
-      --radius: 24px;
+      --panel-soft: #f8faf8;
+      --ink-panel: #13231d;
+      --mint: #9fe1be;
+      --mint-strong: #249765;
+      --amber: #f2b84b;
+      --coral: #e96f52;
+      --blue: #3b82f6;
+      --shadow: 0 10px 30px rgba(17, 24, 22, .08);
+      --shadow-soft: 0 1px 2px rgba(17, 24, 22, .06);
+      --radius: 8px;
     }
 
     * { box-sizing: border-box; }
@@ -29,9 +32,8 @@
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(circle at 12% 8%, rgba(255, 211, 106, .34), transparent 28%),
-        radial-gradient(circle at 88% 0%, rgba(145, 217, 184, .42), transparent 30%),
-        linear-gradient(145deg, #f8f1e5 0%, #eef6ef 100%);
+        linear-gradient(180deg, rgba(36, 151, 101, .08), transparent 220px),
+        var(--paper);
     }
 
     button,
@@ -39,6 +41,7 @@
     textarea,
     select {
       font: inherit;
+      font-size: 16px;
     }
 
     button {
@@ -50,12 +53,12 @@
       width: min(100%, 980px);
       min-height: 100vh;
       margin: 0 auto;
-      padding: max(18px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom));
+      padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
     }
 
     .phone-shell {
       display: grid;
-      gap: 18px;
+      gap: 14px;
       max-width: 520px;
       margin: 0 auto;
     }
@@ -65,45 +68,48 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 4px 2px;
+      padding: 2px 0 6px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 11px;
       min-width: 0;
     }
 
     .brand-mark {
-      width: 42px;
-      height: 42px;
+      width: 40px;
+      height: 40px;
       display: grid;
       place-items: center;
-      border-radius: 16px;
-      background: conic-gradient(from 220deg, var(--coral), var(--sun), var(--mint), var(--blue), var(--coral));
-      box-shadow: 0 12px 28px rgba(50, 168, 117, .24);
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--mint-strong), var(--blue));
+      box-shadow: 0 10px 24px rgba(36, 151, 101, .2);
     }
 
     .brand-mark::after {
       content: "";
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
+      width: 17px;
+      height: 12px;
+      border: solid #fff;
+      border-width: 0 0 3px 3px;
       background: #fff;
+      background: transparent;
+      transform: rotate(-45deg) translate(1px, -1px);
     }
 
     .brand h1 {
       margin: 0;
-      font-size: 22px;
-      line-height: 1.05;
+      font-size: 20px;
+      line-height: 1.08;
       letter-spacing: 0;
     }
 
     .brand p {
-      margin: 3px 0 0;
+      margin: 2px 0 0;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .ghost-button {
@@ -125,19 +131,23 @@
       align-items: center;
     }
 
+    .menu-wrap[hidden] {
+      display: none !important;
+    }
+
     .menu-button {
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      border: 1px solid rgba(23, 33, 28, .12);
-      border-radius: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
       color: var(--ink);
-      background: rgba(255, 255, 255, .72);
-      backdrop-filter: blur(12px);
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
     }
 
     .menu-button span,
@@ -162,11 +172,10 @@
       min-width: 210px;
       display: none;
       padding: 8px;
-      border: 1px solid rgba(23, 33, 28, .1);
-      border-radius: 18px;
-      background: rgba(255, 255, 255, .96);
-      box-shadow: 0 18px 44px rgba(23, 33, 28, .16);
-      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 20px 50px rgba(17, 24, 22, .16);
     }
 
     .menu-panel.open {
@@ -177,7 +186,7 @@
     .menu-panel button {
       min-height: 42px;
       padding: 0 12px;
-      border-radius: 12px;
+      border-radius: 8px;
       color: var(--ink);
       background: transparent;
       text-align: left;
@@ -185,21 +194,20 @@
     }
 
     .menu-panel button:hover {
-      background: #edf5ef;
+      background: var(--panel-soft);
     }
 
     .card {
-      padding: 22px;
-      border: 1px solid rgba(23, 33, 28, .08);
+      padding: 18px;
+      border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(255, 255, 255, .84);
+      background: var(--panel);
       box-shadow: var(--shadow);
-      backdrop-filter: blur(20px);
     }
 
     .hero-card {
       display: grid;
-      gap: 20px;
+      gap: 14px;
       overflow: hidden;
       position: relative;
     }
@@ -209,8 +217,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(120deg, rgba(255, 122, 92, .16), transparent 42%),
-        linear-gradient(300deg, rgba(84, 119, 232, .13), transparent 34%);
+        linear-gradient(120deg, rgba(36, 151, 101, .08), transparent 45%),
+        linear-gradient(300deg, rgba(59, 130, 246, .08), transparent 40%);
       pointer-events: none;
     }
 
@@ -219,7 +227,7 @@
     .eyebrow {
       margin: 0;
       color: var(--mint-strong);
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: .08em;
@@ -227,21 +235,21 @@
 
     .headline {
       margin: 0;
-      font-size: clamp(34px, 9vw, 52px);
-      line-height: .94;
+      font-size: clamp(30px, 8vw, 44px);
+      line-height: .98;
       letter-spacing: 0;
     }
 
     .lead {
       margin: 0;
       color: var(--muted);
-      font-size: 16px;
-      line-height: 1.5;
+      font-size: 14px;
+      line-height: 1.45;
     }
 
     .screen {
       display: none;
-      gap: 16px;
+      gap: 12px;
     }
 
     .screen.active {
@@ -250,7 +258,7 @@
 
     .form {
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .field {
@@ -266,10 +274,10 @@
 
     .input {
       width: 100%;
-      min-height: 52px;
-      padding: 0 15px;
+      min-height: 48px;
+      padding: 0 13px;
       border: 1px solid var(--line);
-      border-radius: 16px;
+      border-radius: 8px;
       outline: 0;
       color: var(--ink);
       background: #fff;
@@ -284,29 +292,30 @@
 
     .input:focus {
       border-color: var(--mint-strong);
-      box-shadow: 0 0 0 4px rgba(50, 168, 117, .14);
+      box-shadow: 0 0 0 4px rgba(36, 151, 101, .12);
     }
 
     .primary-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 54px;
+      min-height: 50px;
       width: 100%;
       padding: 0 18px;
-      border-radius: 18px;
+      border-radius: 8px;
       color: #fff;
-      background: linear-gradient(135deg, #1e9d6a 0%, #2677dd 100%);
-      box-shadow: 0 16px 34px rgba(38, 119, 221, .22);
+      background: #16784f;
+      box-shadow: 0 12px 26px rgba(22, 120, 79, .22);
       font-weight: 800;
     }
 
     .secondary-button {
-      min-height: 46px;
+      min-height: 42px;
       padding: 0 14px;
-      border-radius: 15px;
+      border-radius: 8px;
       color: var(--ink);
-      background: #edf5ef;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
       font-weight: 750;
     }
 
@@ -327,20 +336,20 @@
 
     .challenge-list {
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .challenge-item {
       display: grid;
-      gap: 10px;
+      gap: 7px;
       width: 100%;
-      padding: 16px;
-      border: 1px solid rgba(23, 33, 28, .08);
-      border-radius: 20px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
       color: var(--ink);
       background: #fff;
       text-align: left;
-      box-shadow: 0 10px 24px rgba(23, 33, 28, .06);
+      box-shadow: var(--shadow-soft);
     }
 
     .challenge-row {
@@ -352,7 +361,7 @@
 
     .challenge-item.active {
       border-color: rgba(50, 168, 117, .42);
-      background: #f4fbf7;
+      background: #f2fbf6;
     }
 
     .challenge-item strong {
@@ -369,7 +378,7 @@
 
     .delete-challenge {
       width: 44px;
-      border-radius: 16px;
+      border-radius: 8px;
       color: #bd3f32;
       background: #fff2ef;
       font-size: 22px;
@@ -380,14 +389,14 @@
       display: flex;
       gap: 8px;
       padding: 5px;
-      border-radius: 18px;
-      background: #edf2ee;
+      border-radius: 8px;
+      background: var(--panel-soft);
     }
 
     .auth-toggle button {
       flex: 1;
       min-height: 42px;
-      border-radius: 14px;
+      border-radius: 8px;
       color: var(--muted);
       background: transparent;
       font-weight: 800;
@@ -396,12 +405,12 @@
     .auth-toggle button.active {
       color: var(--ink);
       background: #fff;
-      box-shadow: 0 8px 22px rgba(23, 33, 28, .09);
+      box-shadow: var(--shadow-soft);
     }
 
     .goal-builder {
       display: grid;
-      gap: 14px;
+      gap: 12px;
     }
 
     .section-title {
@@ -409,13 +418,13 @@
       align-items: end;
       justify-content: space-between;
       gap: 12px;
-      margin: 8px 0 6px;
+      margin: 6px 0 4px;
     }
 
     .section-title h2,
     .section-title h3 {
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
       letter-spacing: 0;
     }
 
@@ -437,12 +446,12 @@
     }
 
     .icon-button {
-      width: 52px;
-      min-width: 52px;
-      height: 52px;
+      width: 48px;
+      min-width: 48px;
+      height: 48px;
       display: grid;
       place-items: center;
-      border-radius: 17px;
+      border-radius: 8px;
       color: #fff;
       background: var(--ink);
       font-size: 24px;
@@ -451,7 +460,7 @@
 
     .list {
       display: grid;
-      gap: 8px;
+      gap: 7px;
     }
 
     .pill-item {
@@ -459,10 +468,10 @@
       grid-template-columns: 1fr auto;
       align-items: center;
       gap: 10px;
-      min-height: 48px;
-      padding: 10px 12px;
-      border: 1px solid rgba(23, 33, 28, .08);
-      border-radius: 16px;
+      min-height: 46px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
       background: #fff;
     }
 
@@ -491,7 +500,7 @@
     .mini-button {
       width: 30px;
       height: 30px;
-      border-radius: 10px;
+      border-radius: 8px;
       color: var(--ink);
       background: #eef5f0;
       font-weight: 900;
@@ -505,7 +514,7 @@
     .remove-button {
       width: 30px;
       height: 30px;
-      border-radius: 11px;
+      border-radius: 8px;
       color: var(--muted);
       background: #f2f2ed;
       font-weight: 900;
@@ -513,12 +522,12 @@
 
     .progress-card {
       display: grid;
-      gap: 16px;
+      gap: 18px;
       padding: 20px;
-      border-radius: var(--radius);
-      background: #18231e;
+      border-radius: 8px;
+      background: var(--ink-panel);
       color: #fff;
-      box-shadow: 0 24px 60px rgba(23, 33, 28, .22);
+      box-shadow: 0 18px 42px rgba(19, 35, 29, .22);
     }
 
     .progress-head {
@@ -530,7 +539,7 @@
 
     .progress-head h2 {
       margin: 0;
-      font-size: 24px;
+      font-size: 26px;
       line-height: 1.05;
       letter-spacing: 0;
     }
@@ -542,18 +551,18 @@
     }
 
     .percent {
-      min-width: 82px;
+      min-width: 78px;
       text-align: right;
-      font-size: 34px;
+      font-size: 38px;
       font-weight: 900;
       letter-spacing: 0;
     }
 
     .progress-track {
-      height: 12px;
+      height: 9px;
       overflow: hidden;
       border-radius: 999px;
-      background: rgba(255, 255, 255, .12);
+      background: rgba(255, 255, 255, .14);
     }
 
     .progress-stack {
@@ -579,21 +588,47 @@
       width: 0%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--mint), var(--sun), var(--coral));
+      background: linear-gradient(90deg, #78d39f, #f2b84b);
       transition: width .24s ease;
     }
 
     .progress-fill.overall {
-      background: linear-gradient(90deg, #7dd3fc, #91d9b8);
+      background: linear-gradient(90deg, #60a5fa, #9fe1be);
     }
 
     .goal-card {
       display: grid;
-      gap: 8px;
-      padding: 11px 12px;
-      border: 1px solid rgba(23, 33, 28, .08);
-      border-radius: 16px;
+      gap: 9px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
       background: var(--panel);
+      box-shadow: var(--shadow-soft);
+    }
+
+    #simple-dashboard-list,
+    #time-dashboard-list {
+      gap: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
+    }
+
+    #simple-dashboard-list .goal-card,
+    #time-dashboard-list .goal-card {
+      min-height: 58px;
+      padding: 12px 14px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    #simple-dashboard-list .goal-card + .goal-card,
+    #time-dashboard-list .goal-card + .goal-card {
+      border-top: 1px solid var(--line);
     }
 
     .goal-main {
@@ -601,6 +636,18 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+    }
+
+    .simple-goal-row {
+      justify-content: start;
+      gap: 11px;
+    }
+
+    .time-goal-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) minmax(116px, 148px);
+      align-items: center;
+      gap: 10px;
     }
 
     .goal-title {
@@ -618,23 +665,21 @@
     }
 
     .goal-target {
-      padding: 4px 8px;
-      border-radius: 999px;
-      color: #226149;
-      background: #e7f5ed;
+      display: block;
+      margin-top: 3px;
       font-size: 12px;
-      font-weight: 850;
-      line-height: 1;
-      white-space: nowrap;
+      line-height: 1.25;
+      color: var(--muted);
+      font-weight: 750;
     }
 
     .check {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
-      border-radius: 13px;
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+      border-radius: 999px;
       border: 1px solid var(--line);
-      background: #f6f8f4;
+      background: var(--panel-soft);
       position: relative;
     }
 
@@ -646,10 +691,10 @@
     .check.done::after {
       content: "";
       position: absolute;
-      left: 13px;
-      top: 8px;
-      width: 9px;
-      height: 17px;
+      left: 10px;
+      top: 6px;
+      width: 7px;
+      height: 14px;
       border: solid #fff;
       border-width: 0 3px 3px 0;
       transform: rotate(45deg);
@@ -658,7 +703,7 @@
     .time-select-wrap {
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: 10px;
+      gap: 9px;
       align-items: center;
     }
 
@@ -670,14 +715,31 @@
 
     .time-select {
       width: 100%;
-      min-height: 42px;
+      min-height: 40px;
       padding: 0 12px;
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 8px;
       outline: 0;
       color: var(--ink);
-      background: #f6f8f4;
+      background: var(--panel-soft);
       font-weight: 800;
+    }
+
+    .time-select-wrap.compact {
+      grid-template-columns: 1fr;
+      gap: 0;
+      min-width: 0;
+    }
+
+    .time-select-wrap.compact span {
+      display: none;
+    }
+
+    .time-select-wrap.compact .time-select {
+      min-height: 36px;
+      padding: 0 10px;
+      border-radius: 8px;
+      background: #fff;
     }
 
     .state-line {
@@ -710,8 +772,9 @@
       display: grid;
       gap: 4px;
       padding: 14px;
-      border-radius: 16px;
-      background: #f6f8f4;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
     }
 
     .metric strong {
@@ -737,9 +800,9 @@
       place-items: center;
       gap: 2px;
       padding: 6px 4px;
-      border-radius: 14px;
+      border-radius: 8px;
       color: var(--ink);
-      background: #eef1ec;
+      background: #eef3ef;
       font-weight: 850;
     }
 
@@ -749,9 +812,9 @@
       font-weight: 800;
     }
 
-    .day-cell.good { background: #afe4c8; }
-    .day-cell.mid { background: #ffe49b; }
-    .day-cell.low { background: #ffd0c5; }
+    .day-cell.good { background: #b9e8cf; }
+    .day-cell.mid { background: #ffe6a8; }
+    .day-cell.low { background: #ffd7ce; }
     .day-cell.future {
       color: rgba(23, 33, 28, .35);
       background: rgba(255, 255, 255, .58);
@@ -761,8 +824,8 @@
       display: grid;
       gap: 8px;
       padding: 13px;
-      border: 1px solid rgba(23, 33, 28, .08);
-      border-radius: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
       background: #fff;
     }
 
@@ -778,7 +841,7 @@
       height: 8px;
       overflow: hidden;
       border-radius: 999px;
-      background: #edf2ee;
+      background: var(--panel-soft);
     }
 
     .mini-fill {
@@ -794,9 +857,9 @@
 
     .insight {
       padding: 12px;
-      border-radius: 15px;
+      border-radius: 8px;
       color: var(--muted);
-      background: #f6f8f4;
+      background: var(--panel-soft);
       font-weight: 700;
     }
 
@@ -858,6 +921,589 @@
         grid-template-columns: .8fr 1.2fr;
         align-items: start;
       }
+    }
+
+    .app {
+      width: min(100%, 390px);
+      padding: max(28px, env(safe-area-inset-top)) 20px max(94px, calc(env(safe-area-inset-bottom) + 82px));
+      background: #fff;
+    }
+
+    .phone-shell {
+      max-width: 350px;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .topbar,
+    .screen {
+      grid-column: 1 / -1;
+    }
+
+    .screen.active#auth-screen,
+    .screen.active#setup-screen,
+    .screen.active#dashboard-screen,
+    .screen.active#analytics-screen {
+      grid-template-columns: 1fr;
+    }
+
+    .topbar {
+      padding: 0 3px 2px;
+    }
+
+    .brand {
+      gap: 9px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: conic-gradient(from 205deg, #f2a63b, #5dbf9a, #70a7e8, #d97757, #f2a63b);
+      box-shadow: none;
+    }
+
+    .brand-mark::after {
+      width: 15px;
+      height: 15px;
+      border: 0;
+      border-radius: 999px;
+      background: #fff;
+      transform: none;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      line-height: 1.05;
+      font-weight: 900;
+    }
+
+    .brand p {
+      margin-top: 1px;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .menu-button {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: #fff;
+      box-shadow: 0 5px 14px rgba(17, 24, 22, .08);
+    }
+
+    .menu-button span,
+    .menu-button::before,
+    .menu-button::after {
+      width: 15px;
+      height: 2px;
+    }
+
+    .progress-card {
+      gap: 12px;
+      padding: 17px 15px 16px;
+      border-radius: 13px;
+      background:
+        radial-gradient(circle at 82% 18%, rgba(78, 141, 104, .22), transparent 32%),
+        linear-gradient(145deg, #152d23, #06120d);
+      box-shadow: 0 16px 28px rgba(11, 29, 21, .22);
+    }
+
+    .progress-head h2 {
+      font-size: 20px;
+      line-height: 1.08;
+    }
+
+    .progress-head p {
+      margin-top: 5px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, .74);
+    }
+
+    .percent {
+      min-width: 54px;
+      font-size: 30px;
+      line-height: .96;
+    }
+
+    .progress-stack {
+      gap: 9px;
+    }
+
+    .progress-row {
+      gap: 5px;
+    }
+
+    .progress-label {
+      font-size: 11px;
+    }
+
+    .progress-track {
+      height: 8px;
+      background: rgba(255, 255, 255, .13);
+    }
+
+    .progress-card .lead {
+      font-size: 12px;
+      line-height: 1.35;
+      color: rgba(255, 255, 255, .72);
+    }
+
+    .progress-card .state-line {
+      min-height: 0;
+      font-size: 11px;
+      color: rgba(255, 255, 255, .62);
+    }
+
+    .dashboard-section {
+      padding: 0 4px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .dashboard-section .section-title {
+      margin: 0 0 8px;
+    }
+
+    .dashboard-section .section-title h2 {
+      font-size: 16px;
+      line-height: 1.1;
+      font-weight: 900;
+    }
+
+    #simple-dashboard-list,
+    #time-dashboard-list {
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 5px 16px rgba(17, 24, 22, .05);
+    }
+
+    #simple-dashboard-list .goal-card,
+    #time-dashboard-list .goal-card {
+      min-height: 51px;
+      padding: 9px 10px;
+    }
+
+    .simple-goal-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .time-goal-row {
+      grid-template-columns: auto minmax(0, 1fr) minmax(94px, 106px) auto;
+      gap: 8px;
+    }
+
+    .goal-icon {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: var(--mint-strong);
+      background: #eef8f2;
+    }
+
+    .goal-icon svg {
+      width: 15px;
+      height: 15px;
+      stroke-width: 2.4;
+    }
+
+    .goal-title strong {
+      font-size: 12px;
+      line-height: 1.15;
+      font-weight: 900;
+    }
+
+    .goal-target {
+      margin-top: 2px;
+      font-size: 11px;
+      line-height: 1.1;
+      font-weight: 760;
+    }
+
+    .check {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+    }
+
+    .check.done::after {
+      left: 8px;
+      top: 5px;
+      width: 6px;
+      height: 11px;
+      border-width: 0 2.5px 2.5px 0;
+    }
+
+    .time-select-wrap.compact .time-select {
+      min-height: 30px;
+      padding: 0 9px;
+      border-color: transparent;
+      border-radius: 999px;
+      background: #f4f5f3;
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      z-index: 20;
+      width: min(calc(100% - 40px), 350px);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 2px;
+      padding: 9px 8px 7px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 16px;
+      background: rgba(13, 29, 22, .96);
+      box-shadow: 0 16px 40px rgba(8, 18, 14, .28);
+      backdrop-filter: blur(14px);
+      transform: translateX(-50%);
+    }
+
+    .bottom-nav[hidden] {
+      display: none;
+    }
+
+    .bottom-nav button {
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      min-height: 44px;
+      padding: 2px 0;
+      border-radius: 12px;
+      color: rgba(255, 255, 255, .58);
+      background: transparent;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .bottom-nav svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    .bottom-nav button.active {
+      color: #8ee0ad;
+      background: rgba(142, 224, 173, .1);
+    }
+
+    .bottom-nav button:disabled {
+      color: rgba(255, 255, 255, .25);
+      cursor: default;
+    }
+
+    #auth-screen .hero-card,
+    #setup-screen > .card:first-child,
+    #challenges-screen > .card:first-child,
+    #analytics-screen > .card:first-child {
+      gap: 10px;
+      padding: 17px 15px 16px;
+      border: 0;
+      border-radius: 13px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 84% 18%, rgba(78, 141, 104, .22), transparent 32%),
+        linear-gradient(145deg, #152d23, #06120d);
+      box-shadow: 0 16px 28px rgba(11, 29, 21, .2);
+    }
+
+    #auth-screen .hero-card::before {
+      display: none;
+    }
+
+    #auth-screen .eyebrow,
+    #setup-screen > .card:first-child .eyebrow,
+    #challenges-screen > .card:first-child .eyebrow,
+    #analytics-screen > .card:first-child .eyebrow {
+      color: #8ee0ad;
+      font-size: 10px;
+      letter-spacing: .08em;
+    }
+
+    #auth-screen .headline,
+    #setup-screen .headline,
+    #challenges-screen .headline,
+    #analytics-screen .headline {
+      font-size: 23px;
+      line-height: 1.05;
+      font-weight: 900;
+    }
+
+    #auth-screen .lead,
+    #setup-screen > .card:first-child .lead,
+    #challenges-screen > .card:first-child .lead,
+    #analytics-screen > .card:first-child .lead {
+      color: rgba(255, 255, 255, .72);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    #auth-screen > .card:not(.hero-card),
+    #setup-screen > .card:not(:first-child),
+    #challenges-screen > .card:not(:first-child),
+    #analytics-screen > .card:not(:first-child) {
+      padding: 14px;
+      border-radius: 13px;
+      border-color: var(--line);
+      background: #fff;
+      box-shadow: 0 5px 16px rgba(17, 24, 22, .05);
+    }
+
+    #auth-screen .auth-toggle {
+      padding: 4px;
+      border-radius: 12px;
+      background: #f4f5f3;
+    }
+
+    #auth-screen .auth-toggle button {
+      min-height: 38px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    #auth-screen .field span,
+    #setup-screen .field span {
+      font-size: 12px;
+    }
+
+    #auth-screen .input,
+    #setup-screen .input {
+      min-height: 44px;
+      border-radius: 12px;
+      font-size: 16px;
+    }
+
+    #auth-screen .primary-button,
+    #setup-screen .primary-button,
+    #setup-screen .secondary-button,
+    #analytics-screen .secondary-button,
+    #challenges-screen .secondary-button {
+      min-height: 42px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    #setup-screen .goal-builder {
+      gap: 9px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfcfb;
+    }
+
+    #setup-screen .section-title {
+      margin: 0;
+    }
+
+    #setup-screen .section-title h3 {
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    #setup-screen .section-title p {
+      font-size: 11px;
+    }
+
+    #setup-screen .goal-input-row {
+      gap: 8px;
+    }
+
+    #setup-screen .time-row {
+      grid-template-columns: 1fr 82px auto;
+    }
+
+    #setup-screen .icon-button {
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--ink-panel);
+      font-size: 22px;
+    }
+
+    #setup-screen .pill-item {
+      min-height: 42px;
+      padding: 8px 9px;
+      border-radius: 12px;
+      box-shadow: none;
+    }
+
+    #challenges-screen .action-row {
+      margin-top: 2px;
+    }
+
+    #challenges-screen .challenge-list-card {
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .challenge-list {
+      gap: 8px;
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .challenge-row {
+      position: relative;
+      display: block;
+      overflow: visible;
+      border-radius: 12px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .challenge-item {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      gap: 4px;
+      padding: 12px 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 5px 16px rgba(17, 24, 22, .05);
+      touch-action: pan-y;
+      transition: transform .2s ease;
+      will-change: transform;
+    }
+
+    .challenge-item.active {
+      background: #f1f9f4;
+    }
+
+    .challenge-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .challenge-item strong {
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .challenge-item span {
+      font-size: 11px;
+    }
+
+    .challenge-day-pill {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: #20704f;
+      background: #e9f6ef;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .challenge-actions {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 42px);
+      gap: 8px;
+      width: 92px;
+      height: 42px;
+      overflow: visible;
+      border-radius: 0;
+      background: transparent;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(8px, -50%);
+      transition: opacity .16s ease, transform .2s ease;
+    }
+
+    .challenge-action {
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: #fff;
+      background: #225f45;
+      box-shadow: 0 6px 14px rgba(17, 24, 22, .12);
+    }
+
+    .challenge-action.delete-challenge {
+      background: #d94b3d;
+    }
+
+    .challenge-action svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.3;
+    }
+
+    .challenge-row.open .challenge-item {
+      transform: translateX(-104px);
+    }
+
+    .challenge-row.open .challenge-actions {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(0, -50%);
+    }
+
+    #analytics-screen .metric-grid {
+      gap: 8px;
+    }
+
+    #analytics-screen .metric {
+      padding: 11px;
+      border-radius: 12px;
+      background: #f8faf8;
+    }
+
+    #analytics-screen .metric strong {
+      font-size: 20px;
+    }
+
+    #analytics-screen .metric span {
+      font-size: 10px;
+    }
+
+    #analytics-screen .section-title {
+      margin: 0 0 8px;
+    }
+
+    #analytics-screen .section-title h2 {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    #analytics-screen .day-grid {
+      gap: 5px;
+    }
+
+    #analytics-screen .day-cell {
+      min-height: 39px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    #analytics-screen .analytics-goal,
+    #analytics-screen .insight {
+      border-radius: 12px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -979,14 +1625,14 @@
         <div class="card">
           <p class="eyebrow">Твои челленджи</p>
           <h2 class="headline">Выбери, что открыть.</h2>
-          <p class="lead">После входа приложение открывает самый свежий челлендж, но здесь можно переключиться на любой другой.</p>
+          <p class="lead">После входа приложение открывает последний активный челлендж, но здесь можно переключиться на любой другой.</p>
           <div class="action-row">
             <button class="secondary-button" id="challenges-new" type="button">Создать новый</button>
             <button class="secondary-button" id="challenges-current" type="button">Текущий</button>
           </div>
         </div>
 
-        <div class="card">
+        <div class="card challenge-list-card">
           <div class="challenge-list" id="challenges-list"></div>
         </div>
       </section>
@@ -1024,7 +1670,7 @@
           <div class="state-line" id="dashboard-message"></div>
         </div>
 
-        <div class="card">
+        <div class="card dashboard-section">
           <div class="section-title">
             <div>
               <h2>Простые цели</h2>
@@ -1033,7 +1679,7 @@
           <div class="list" id="simple-dashboard-list"></div>
         </div>
 
-        <div class="card">
+        <div class="card dashboard-section">
           <div class="section-title">
             <div>
               <h2>Цели по часам</h2>
@@ -1082,6 +1728,36 @@
           <div class="insight-list" id="analytics-insights"></div>
         </div>
       </section>
+
+      <nav class="bottom-nav" id="bottom-nav" aria-label="Основная навигация" hidden>
+        <button id="nav-challenges" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 7h10M7 12h10M7 17h10" stroke="currentColor" stroke-linecap="round"/>
+            <path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-linejoin="round"/>
+          </svg>
+          <span>Все челленджи</span>
+        </button>
+        <button id="nav-today" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 5h8M6 9h12M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="m9 14 2 2 4-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Сегодня</span>
+        </button>
+        <button id="nav-analytics" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 20V10M12 20V4M18 20v-7" stroke="currentColor" stroke-linecap="round"/>
+          </svg>
+          <span>Аналитика</span>
+        </button>
+        <button id="nav-profile" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M10 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 8l4 4-4 4M18 12H9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Выход</span>
+        </button>
+      </nav>
     </div>
   </main>
 
@@ -1089,6 +1765,7 @@
 
   <script>
     const TOKEN_KEY = 'tvoy_challenge_session';
+    const LAST_CHALLENGE_PREFIX = 'tvoy_challenge_last_active_';
     const TOKEN_MAX_AGE = 60 * 60 * 24 * 30;
     const REFRESH_INTERVAL_MS = 8000;
     const state = {
@@ -1098,12 +1775,15 @@
       draftSimpleGoals: [],
       draftTimeGoals: [],
       editingChallengeId: '',
+      editReturnChallengeId: '',
       activeScreen: 'auth',
       pendingSaves: 0,
       pendingGoalUpdates: {},
       goalRequestSeq: {},
       currentChallengeId: '',
       challengeOpenSeq: 0,
+      restoringChallengeId: '',
+      openChallengeActionsId: '',
       refreshTimer: null,
       refreshInFlight: false,
     };
@@ -1169,6 +1849,11 @@
       analyticsDays: $('#analytics-days'),
       analyticsGoals: $('#analytics-goals'),
       analyticsInsights: $('#analytics-insights'),
+      bottomNav: $('#bottom-nav'),
+      navToday: $('#nav-today'),
+      navChallenges: $('#nav-challenges'),
+      navAnalytics: $('#nav-analytics'),
+      navProfile: $('#nav-profile'),
     };
 
     boot();
@@ -1225,7 +1910,11 @@
       els.setupLatestChallenge.addEventListener('click', openLatestChallenge);
       els.challengesNew.addEventListener('click', startNewChallenge);
       els.challengesCurrent.addEventListener('click', openCurrentChallenge);
-      els.analyticsToday.addEventListener('click', () => showScreen('dashboard'));
+      els.analyticsToday.addEventListener('click', openCurrentChallenge);
+      els.navToday.addEventListener('click', openCurrentChallenge);
+      els.navChallenges.addEventListener('click', showChallenges);
+      els.navAnalytics.addEventListener('click', showAnalytics);
+      els.navProfile.addEventListener('click', handleLogout);
       els.simpleGoalInput.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -1271,11 +1960,36 @@
     function handleLogout() {
       const token = state.sessionToken;
       stopAutoRefresh();
+      closeMenu();
       forgetToken();
       state.sessionToken = '';
       state.app = null;
       state.currentChallengeId = '';
+      state.editingChallengeId = '';
+      state.editReturnChallengeId = '';
+      state.openChallengeActionsId = '';
+      state.pendingSaves = 0;
+      state.pendingGoalUpdates = {};
+      state.goalRequestSeq = {};
+      setAuthMode('login');
+      els.menuWrap.hidden = true;
+      els.bottomNav.hidden = true;
+      els.authForm.reset();
+      els.authEmail.value = '';
+      els.authPassword.value = '';
+      els.challengesList.innerHTML = '';
+      els.simpleDashboardList.innerHTML = '';
+      els.timeDashboardList.innerHTML = '';
+      els.analyticsMetrics.innerHTML = '';
+      els.analyticsDays.innerHTML = '';
+      els.analyticsGoals.innerHTML = '';
+      els.analyticsInsights.innerHTML = '';
+      setMessage(els.authMessage, '');
       showScreen('auth');
+      setTimeout(() => {
+        els.authEmail.value = '';
+        els.authPassword.value = '';
+      }, 60);
       if (token) server('apiLogout', token).catch(() => {});
     }
 
@@ -1365,6 +2079,7 @@
         : server('apiCreateChallenge', state.sessionToken, payload);
       request
         .then(appState => {
+          state.editReturnChallengeId = '';
           resetChallengeForm();
           handleAppState(appState);
         })
@@ -1379,10 +2094,12 @@
       appState = mergePendingGoalUpdates(appState);
       state.app = appState;
       state.sessionToken = appState.sessionToken;
-      state.currentChallengeId = appState.challenge ? appState.challenge.challengeId : '';
       rememberToken(appState.sessionToken);
       els.menuWrap.hidden = false;
       els.userCaption.textContent = appState.user.email;
+      state.restoringChallengeId = '';
+      state.currentChallengeId = appState.challenge ? appState.challenge.challengeId : '';
+      rememberChallengeId(appState.user, state.currentChallengeId);
       updateMenuState();
       renderChallenges(appState);
       els.setupActions.hidden = !(appState.challenges && appState.challenges.length);
@@ -1404,19 +2121,151 @@
       els.challengesList.innerHTML = challenges.length
         ? challenges.map(renderChallengeItem).join('')
         : '<div class="empty">Пока нет челленджей</div>';
+      bindChallengeRows();
     }
 
     function renderChallengeItem(challenge) {
       const activeClass = challenge.isCurrent ? ' active' : '';
+      const openClass = challenge.challengeId === state.openChallengeActionsId ? ' open' : '';
       return `
-        <div class="challenge-row">
-          <button class="challenge-item${activeClass}" type="button" onclick="openChallenge('${challenge.challengeId}')">
-            <strong>${escapeHtml(challenge.title)}</strong>
-            <span>День ${challenge.dayNumber} из ${challenge.durationDays}. Целей: ${challenge.totalGoals}. Старт: ${escapeHtml(formatDate(challenge.startDate))}</span>
+        <div class="challenge-row${openClass}" data-challenge-id="${escapeAttribute(challenge.challengeId)}">
+          <div class="challenge-actions" aria-hidden="false">
+            <button class="challenge-action" type="button" data-action="edit" aria-label="Редактировать челлендж">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m14.5 5.5 4 4M5 19l4.2-.8L18 9.4 14.6 6 5.8 14.8 5 19Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="challenge-action delete-challenge" type="button" data-action="delete" aria-label="Удалить челлендж">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <button class="challenge-item${activeClass}" type="button" data-action="open">
+            <div class="challenge-title-row">
+              <strong>${escapeHtml(challenge.title)}</strong>
+              <small class="challenge-day-pill">${challenge.dayNumber}/${challenge.durationDays}</small>
+            </div>
+            <span>${challenge.totalGoals} целей. Старт: ${escapeHtml(formatDate(challenge.startDate))}</span>
           </button>
-          <button class="delete-challenge" type="button" onclick="deleteChallenge('${challenge.challengeId}')" aria-label="Удалить челлендж">×</button>
         </div>
       `;
+    }
+
+    function bindChallengeRows() {
+      const rows = Array.from(els.challengesList.querySelectorAll('.challenge-row'));
+      rows.forEach(row => {
+        const challengeId = row.dataset.challengeId;
+        const item = row.querySelector('.challenge-item');
+        const editButton = row.querySelector('[data-action="edit"]');
+        const deleteButton = row.querySelector('[data-action="delete"]');
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let didSwipe = false;
+
+        item.addEventListener('pointerdown', event => {
+          startX = event.clientX;
+          currentX = startX;
+          isDragging = true;
+          didSwipe = false;
+          item.setPointerCapture(event.pointerId);
+          item.style.transition = 'none';
+        });
+
+        item.addEventListener('pointermove', event => {
+          if (!isDragging) return;
+          currentX = event.clientX;
+          const deltaX = currentX - startX;
+          if (Math.abs(deltaX) < 8) return;
+          if (deltaX < 0) {
+            didSwipe = true;
+            item.style.transform = `translateX(${Math.max(deltaX, -104)}px)`;
+          } else if (row.classList.contains('open')) {
+            didSwipe = true;
+            item.style.transform = `translateX(${Math.min(-104 + deltaX, 0)}px)`;
+          }
+        });
+
+        item.addEventListener('pointerup', () => {
+          if (!isDragging) return;
+          isDragging = false;
+          item.style.transition = '';
+          item.style.transform = '';
+          const deltaX = currentX - startX;
+          if (deltaX < -44) {
+            closeChallengeRows(row);
+            row.classList.add('open');
+            state.openChallengeActionsId = challengeId;
+            return;
+          }
+          if (deltaX > 36) {
+            row.classList.remove('open');
+            if (state.openChallengeActionsId === challengeId) state.openChallengeActionsId = '';
+            return;
+          }
+          if (didSwipe) {
+            const shouldOpen = deltaX < 0;
+            if (shouldOpen) closeChallengeRows(row);
+            row.classList.toggle('open', shouldOpen);
+            state.openChallengeActionsId = shouldOpen ? challengeId : '';
+          }
+        });
+
+        item.addEventListener('pointercancel', () => {
+          isDragging = false;
+          item.style.transition = '';
+          item.style.transform = '';
+        });
+
+        item.addEventListener('click', event => {
+          if (didSwipe) {
+            event.preventDefault();
+            didSwipe = false;
+            return;
+          }
+          if (row.classList.contains('open')) {
+            row.classList.remove('open');
+            if (state.openChallengeActionsId === challengeId) state.openChallengeActionsId = '';
+            return;
+          }
+          state.openChallengeActionsId = '';
+          openChallenge(challengeId);
+        });
+
+        bindChallengeAction(editButton, () => editChallenge(challengeId));
+        bindChallengeAction(deleteButton, () => deleteChallenge(challengeId));
+      });
+    }
+
+    function bindChallengeAction(button, action) {
+      let handledAt = 0;
+      const run = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const now = Date.now();
+        if (now - handledAt < 450) return;
+        handledAt = now;
+        state.openChallengeActionsId = '';
+        closeChallengeRows();
+        action();
+      };
+      button.addEventListener('pointerup', run);
+      button.addEventListener('click', event => {
+        if (Date.now() - handledAt < 450) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        run(event);
+      });
+    }
+
+    function closeChallengeRows(exceptRow) {
+      els.challengesList.querySelectorAll('.challenge-row.open').forEach(row => {
+        if (row !== exceptRow) row.classList.remove('open');
+      });
+      if (!exceptRow) state.openChallengeActionsId = '';
     }
 
     function renderDashboard(appState) {
@@ -1508,7 +2357,12 @@
     function renderSimpleGoal(goal) {
       return `
         <article class="goal-card">
-          <div class="goal-main">
+          <div class="goal-main simple-goal-row">
+            <span class="goal-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <div class="goal-title">
               <strong>${escapeHtml(goal.title)}</strong>
             </div>
@@ -1522,21 +2376,29 @@
       const options = buildTimeOptions();
       return `
         <article class="goal-card">
-          <div class="goal-main">
+          <div class="time-goal-row">
+            <span class="goal-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="8" stroke="currentColor"/>
+                <path d="M12 8v5l3 2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <div class="goal-title">
-              <strong>${escapeHtml(goal.title)}</strong>
-              <span class="goal-target">${formatHours(goal.targetHours)}</span>
+              <div>
+                <strong>${escapeHtml(goal.title)}</strong>
+                <span class="goal-target">${formatHours(goal.targetHours)}</span>
+              </div>
             </div>
-            <button class="check ${goal.isCompleted ? 'done' : ''}" type="button" aria-label="Статус цели"></button>
+            <label class="time-select-wrap compact">
+              <span>Время</span>
+              <select class="time-select" onchange="setHours('${goal.goalId}', Number(this.value))">
+                ${options.map(value => `
+                  <option value="${value}" ${Number(goal.actualHours) === value ? 'selected' : ''}>${formatHours(value)}</option>
+                `).join('')}
+              </select>
+            </label>
+            <span class="check ${goal.isCompleted ? 'done' : ''}" aria-label="Статус цели" role="img"></span>
           </div>
-          <label class="time-select-wrap">
-            <span>Время</span>
-            <select class="time-select" onchange="setHours('${goal.goalId}', Number(this.value))">
-              ${options.map(value => `
-                <option value="${value}" ${Number(goal.actualHours) === value ? 'selected' : ''}>${formatHours(value)}</option>
-              `).join('')}
-            </select>
-          </label>
         </article>
       `;
     }
@@ -1645,18 +2507,33 @@
     }
 
     function showChallenges() {
+      if (!state.sessionToken || !state.app) {
+        showScreen('auth');
+        return;
+      }
+      if (restoreEditReturn('challenges')) return;
       if (state.app) renderChallenges(state.app);
       showScreen('challenges');
       refreshCurrentChallenge();
     }
 
     function showAnalytics() {
+      if (!state.sessionToken || !state.app) {
+        showScreen('auth');
+        return;
+      }
+      if (restoreEditReturn('analytics')) return;
       if (!state.app || !state.app.challenge) return;
       renderAnalytics(state.app);
       showScreen('analytics');
     }
 
     function startNewChallenge() {
+      if (!state.sessionToken || !state.app) {
+        showScreen('auth');
+        return;
+      }
+      state.editReturnChallengeId = '';
       resetChallengeForm();
       setMessage(els.setupMessage, '');
       showScreen('setup');
@@ -1666,6 +2543,7 @@
     function startEditChallenge() {
       if (!state.app || !state.app.challenge) return;
       stopAutoRefresh();
+      if (!state.editReturnChallengeId) state.editReturnChallengeId = state.currentChallengeId || state.app.challenge.challengeId;
       state.editingChallengeId = state.app.challenge.challengeId;
       els.setupTitle.textContent = 'Редактируй челлендж.';
       els.setupLead.textContent = 'После сохранения челлендж начнется заново с сегодняшней даты, а текущие отметки сбросятся.';
@@ -1684,8 +2562,33 @@
       setTimeout(() => els.challengeTitle.focus(), 60);
     }
 
+    function editChallenge(challengeId) {
+      stopAutoRefresh();
+      state.editReturnChallengeId = state.currentChallengeId || (state.app && state.app.challenge && state.app.challenge.challengeId) || '';
+      state.currentChallengeId = challengeId;
+      const openSeq = ++state.challengeOpenSeq;
+      setLoading(true);
+      server('apiPreviewChallenge', state.sessionToken, challengeId)
+        .then(appState => {
+          if (openSeq !== state.challengeOpenSeq) return;
+          if (!appState || !appState.challenge || appState.challenge.challengeId !== state.currentChallengeId) return;
+          appState = mergePendingGoalUpdates(appState);
+          state.app = appState;
+          state.sessionToken = appState.sessionToken;
+          state.currentChallengeId = appState.challenge.challengeId;
+          rememberToken(appState.sessionToken);
+          els.userCaption.textContent = appState.user.email;
+          renderChallenges(appState);
+          els.setupActions.hidden = !(appState.challenges && appState.challenges.length);
+          startEditChallenge();
+        })
+        .catch(error => setMessage(els.setupMessage, error.message, true))
+        .finally(() => setLoading(false));
+    }
+
     function resetChallengeForm() {
       state.editingChallengeId = '';
+      state.editReturnChallengeId = '';
       state.draftSimpleGoals = [];
       state.draftTimeGoals = [];
       els.challengeForm.reset();
@@ -1720,11 +2623,46 @@
     }
 
     function openCurrentChallenge() {
+      if (!state.sessionToken || !state.app) {
+        showScreen('auth');
+        return;
+      }
+      if (restoreEditReturn('dashboard')) return;
       if (state.app && state.app.challenge) {
         showScreen('dashboard');
         return;
       }
       openLatestChallenge();
+    }
+
+    function restoreEditReturn(targetScreen) {
+      if (!state.editingChallengeId) return false;
+      const returnChallengeId = state.editReturnChallengeId || state.currentChallengeId;
+      const editingChallengeId = state.editingChallengeId;
+      if (!returnChallengeId || returnChallengeId === editingChallengeId) {
+        resetChallengeForm();
+        if (targetScreen === 'analytics') showAnalytics();
+        else if (targetScreen === 'challenges') showChallenges();
+        else showScreen('dashboard');
+        return true;
+      }
+
+      resetChallengeForm();
+      stopAutoRefresh();
+      state.currentChallengeId = returnChallengeId;
+      const openSeq = ++state.challengeOpenSeq;
+      setLoading(true);
+      server('apiOpenChallenge', state.sessionToken, returnChallengeId)
+        .then(appState => {
+          if (openSeq !== state.challengeOpenSeq) return;
+          if (!appState || !appState.challenge || appState.challenge.challengeId !== state.currentChallengeId) return;
+          handleAppState(appState);
+          if (targetScreen === 'analytics') showAnalytics();
+          if (targetScreen === 'challenges') showChallenges();
+        })
+        .catch(error => setMessage(els.setupMessage, error.message, true))
+        .finally(() => setLoading(false));
+      return true;
     }
 
     function openChallenge(challengeId) {
@@ -1789,18 +2727,33 @@
       els.dashboardScreen.classList.toggle('active', name === 'dashboard');
       els.analyticsScreen.classList.toggle('active', name === 'analytics');
       els.menuWrap.hidden = name === 'auth';
+      els.bottomNav.hidden = name === 'auth';
       if (name === 'auth') els.userCaption.textContent = 'Личный трекер прогресса';
       if (name === 'auth') {
         closeMenu();
         stopAutoRefresh();
       }
       updateMenuState();
+      scrollToScreenTop();
+    }
+
+    function scrollToScreenTop() {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
     }
 
     function updateMenuState() {
       const insideChallenge = (state.activeScreen === 'dashboard' || state.activeScreen === 'analytics') && state.app && state.app.challenge;
       els.menuAnalytics.hidden = !insideChallenge;
       els.menuEdit.hidden = !insideChallenge;
+      els.navToday.classList.toggle('active', state.activeScreen === 'dashboard');
+      els.navChallenges.classList.toggle('active', state.activeScreen === 'challenges');
+      els.navAnalytics.classList.toggle('active', state.activeScreen === 'analytics');
+      els.navProfile.classList.remove('active');
+      els.navAnalytics.disabled = !(state.app && state.app.challenge);
     }
 
     function toggleMenu(event) {
@@ -1853,6 +2806,32 @@
         localStorage.removeItem(TOKEN_KEY);
       } catch (error) {}
       document.cookie = `${TOKEN_KEY}=; max-age=0; path=/; SameSite=Lax; Secure`;
+    }
+
+    function challengeStorageKey(user) {
+      const userKey = user && (user.userId || user.email);
+      return LAST_CHALLENGE_PREFIX + String(userKey || 'default');
+    }
+
+    function getStoredChallengeId(user) {
+      try {
+        return localStorage.getItem(challengeStorageKey(user)) || '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function rememberChallengeId(user, challengeId) {
+      if (!challengeId) return;
+      try {
+        localStorage.setItem(challengeStorageKey(user), challengeId);
+      } catch (error) {}
+    }
+
+    function forgetChallengeId(user) {
+      try {
+        localStorage.removeItem(challengeStorageKey(user));
+      } catch (error) {}
     }
 
     function server(method, ...args) {
@@ -1917,6 +2896,7 @@
     window.toggleSimple = toggleSimple;
     window.setHours = setHours;
     window.openChallenge = openChallenge;
+    window.editChallenge = editChallenge;
     window.deleteChallenge = deleteChallenge;
   </script>
 </body>
