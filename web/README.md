@@ -1,16 +1,42 @@
-# React + Vite
+# Твой челлендж Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite-версия трекера привычек. Целевая архитектура:
 
-Currently, two official plugins are available:
+- React + Vite для фронтенда
+- Supabase Auth для регистрации и входа
+- Supabase Postgres для челленджей, целей и ежедневных отметок
+- Vercel для публикации
+- Telegram MiniApp как следующий слой поверх веб-приложения
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Локальный запуск
 
-## React Compiler
+```bash
+npm install
+npm run dev -- --host 0.0.0.0
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+После запуска:
 
-## Expanding the ESLint configuration
+- Mac: `http://localhost:5173`
+- iPhone в той же Wi-Fi сети: `http://<IP-MAC>:5173`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Supabase
+
+1. Создать проект в Supabase.
+2. Открыть SQL Editor.
+3. Выполнить SQL из `supabase/schema.sql`.
+4. Скопировать Project URL и anon public key.
+5. Создать `web/.env.local` по примеру `.env.example`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+После изменения `.env.local` нужно перезапустить Vite dev server.
+
+## Текущий статус
+
+Интерфейс уже перенесён в React и работает на mock-данных. Supabase SDK, клиент,
+сервисы авторизации и базовая SQL-схема добавлены. Следующий шаг: подключить экран
+входа/регистрации к Supabase Auth.
