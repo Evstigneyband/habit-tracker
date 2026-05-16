@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
 import {
   createChallenge,
+  deleteChallenge,
   getChallengeEntries,
   getChallengeGoals,
+  getUserProfile,
   getUserChallenges,
   saveDailyEntry,
   setLastActiveChallenge,
@@ -143,7 +145,10 @@ function App() {
     setAppError('')
 
     try {
-      const nextChallenges = await getUserChallenges(nextUserId)
+      const [nextChallenges, profile] = await Promise.all([
+        getUserChallenges(nextUserId),
+        getUserProfile(nextUserId),
+      ])
       setChallenges(nextChallenges)
       if (nextChallenges.length === 0) {
         setSimpleGoals([])
@@ -153,6 +158,9 @@ function App() {
       }
       setActiveChallengeId((currentId) => {
         if (currentId && nextChallenges.some((challenge) => challenge.id === currentId)) return currentId
+        if (profile?.last_active_challenge_id && nextChallenges.some((challenge) => challenge.id === profile.last_active_challenge_id)) {
+          return profile.last_active_challenge_id
+        }
         return nextChallenges[0]?.id || ''
       })
     } catch (error) {
@@ -164,11 +172,42 @@ function App() {
 
   async function selectChallenge(challengeId) {
     setActiveChallengeId(challengeId)
+    setSimpleGoals([])
+    setTimeGoals([])
+    setRawGoals([])
+    setDailyEntries([])
     setScreen('today')
     setAppError('')
 
     try {
       await setLastActiveChallenge(userId, challengeId)
+    } catch (error) {
+      setAppError(error.message)
+    }
+  }
+
+  async function handleDeleteChallenge(challengeId) {
+    const challenge = challenges.find((item) => item.id === challengeId)
+    if (!challenge) return
+    if (!window.confirm(`Удалить челлендж «${challenge.title}»?`)) return
+
+    setAppError('')
+
+    try {
+      await deleteChallenge({ userId, challengeId })
+      const nextChallenges = challenges.filter((item) => item.id !== challengeId)
+      setChallenges(nextChallenges)
+
+      if (challengeId === activeChallengeId) {
+        const nextActiveId = nextChallenges[0]?.id || ''
+        setActiveChallengeId(nextActiveId)
+        setSimpleGoals([])
+        setTimeGoals([])
+        setRawGoals([])
+        setDailyEntries([])
+        await setLastActiveChallenge(userId, nextActiveId || null)
+        if (!nextActiveId) navigate('challenges')
+      }
     } catch (error) {
       setAppError(error.message)
     }
@@ -350,7 +389,9 @@ function App() {
           challenges={challenges}
           activeChallengeId={activeChallengeId}
           isLoading={isLoadingChallenges}
+          appError={appError}
           onSelectChallenge={selectChallenge}
+          onDeleteChallenge={handleDeleteChallenge}
           onCreate={() => navigate('create')}
           onCurrent={() => navigate('today')}
         />
@@ -588,7 +629,16 @@ function TimeGoalRow({ goal, onChange }) {
   )
 }
 
-function ChallengesScreen({ challenges, activeChallengeId, isLoading, onSelectChallenge, onCreate, onCurrent }) {
+function ChallengesScreen({
+  challenges,
+  activeChallengeId,
+  isLoading,
+  appError,
+  onSelectChallenge,
+  onDeleteChallenge,
+  onCreate,
+  onCurrent,
+}) {
   const [openId, setOpenId] = useState('')
 
   return (
@@ -607,6 +657,7 @@ function ChallengesScreen({ challenges, activeChallengeId, isLoading, onSelectCh
       </div>
 
       <div className="challenge-list">
+        {appError && <p className="form-error">{appError}</p>}
         {isLoading && <p className="muted-state">Загружаю челленджи...</p>}
         {!isLoading && challenges.length === 0 && <p className="muted-state">Пока нет челленджей. Создай первый.</p>}
         {challenges.map((challenge) => (
@@ -616,6 +667,10 @@ function ChallengesScreen({ challenges, activeChallengeId, isLoading, onSelectCh
             open={openId === challenge.id}
             onToggle={() => setOpenId(openId === challenge.id ? '' : challenge.id)}
             onSelect={() => onSelectChallenge(challenge.id)}
+            onDelete={() => {
+              setOpenId('')
+              onDeleteChallenge(challenge.id)
+            }}
           />
         ))}
       </div>
@@ -623,14 +678,14 @@ function ChallengesScreen({ challenges, activeChallengeId, isLoading, onSelectCh
   )
 }
 
-function ChallengeRow({ challenge, open, onToggle, onSelect }) {
+function ChallengeRow({ challenge, open, onToggle, onSelect, onDelete }) {
   return (
     <article className={`challenge-row ${challenge.active ? 'active' : ''} ${open ? 'open' : ''}`}>
       <div className="challenge-actions">
         <button type="button" aria-label="Редактировать челлендж">
           <EditIcon />
         </button>
-        <button className="delete" type="button" aria-label="Удалить челлендж">
+        <button className="delete" type="button" onClick={onDelete} aria-label="Удалить челлендж">
           <CloseIcon />
         </button>
       </div>

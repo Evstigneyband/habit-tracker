@@ -13,6 +13,18 @@ export async function getUserChallenges(userId) {
   return data
 }
 
+export async function getUserProfile(userId) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, last_active_challenge_id')
+    .eq('id', userId)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export async function createChallenge({ userId, title, durationDays, startDate, simpleGoals = [], timeGoals = [] }) {
   const supabase = requireSupabase()
   const endDate = addDays(startDate, durationDays - 1)
@@ -71,6 +83,20 @@ export async function setLastActiveChallenge(userId, challengeId) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
+
+  if (error) throw error
+}
+
+export async function deleteChallenge({ userId, challengeId }) {
+  const supabase = requireSupabase()
+  const { error } = await supabase
+    .from('challenges')
+    .update({
+      status: 'deleted',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', challengeId)
+    .eq('user_id', userId)
 
   if (error) throw error
 }
