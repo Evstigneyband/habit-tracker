@@ -358,6 +358,7 @@ function App() {
       {screen === 'analytics' && (
         <AnalyticsScreen
           challenge={activeChallenge}
+          goals={rawGoals}
           dailyEntries={dailyEntries}
           totalGoals={simpleGoals.length + timeGoals.length}
         />
@@ -648,10 +649,10 @@ function ChallengeRow({ challenge, open, onToggle, onSelect }) {
   )
 }
 
-function AnalyticsScreen({ challenge, dailyEntries, totalGoals }) {
+function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
   const analytics = useMemo(
-    () => buildAnalytics(challenge, dailyEntries, totalGoals),
-    [challenge, dailyEntries, totalGoals],
+    () => buildAnalytics(challenge, goals, dailyEntries, totalGoals),
+    [challenge, goals, dailyEntries, totalGoals],
   )
 
   return (
@@ -685,6 +686,41 @@ function AnalyticsScreen({ challenge, dailyEntries, totalGoals }) {
           ))}
         </div>
       </section>
+
+      <section className="surface analytics-section">
+        <h2 className="section-heading">Разбор по целям</h2>
+        <div className="analytics-list">
+          {analytics.goalStats.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
+          {analytics.goalStats.map((goal) => (
+            <article className="analytics-row" key={goal.id}>
+              <div>
+                <strong>{goal.title}</strong>
+                <span>{goal.subtitle}</span>
+              </div>
+              <small>{goal.percent}%</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {analytics.timeStats.length > 0 && (
+        <section className="surface analytics-section">
+          <h2 className="section-heading">Время по целям</h2>
+          <div className="analytics-list">
+            {analytics.timeStats.map((goal) => (
+              <article className="analytics-row" key={goal.id}>
+                <div>
+                  <strong>{goal.title}</strong>
+                  <span>
+                    {formatHours(goal.totalHours)} всего. План: {formatHours(goal.targetHours)} в день.
+                  </span>
+                </div>
+                <small>{goal.completedDays} дн.</small>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   )
 }
@@ -871,7 +907,7 @@ function findEntry(entries, goalId) {
   return entries.find((entry) => entry.goal_id === goalId)
 }
 
-function buildAnalytics(challenge, entries, totalGoals) {
+function buildAnalytics(challenge, goals, entries, totalGoals) {
   if (!challenge) {
     return {
       currentDay: 0,
@@ -881,6 +917,8 @@ function buildAnalytics(challenge, entries, totalGoals) {
       fullDays: 0,
       lowDays: 0,
       days: [],
+      goalStats: [],
+      timeStats: [],
     }
   }
 
@@ -909,6 +947,45 @@ function buildAnalytics(challenge, entries, totalGoals) {
 
   const elapsedDays = days.filter((day) => !day.future)
   const elapsedTotal = elapsedDays.reduce((sum, day) => sum + day.percent, 0)
+  const elapsedCount = Math.max(elapsedDays.length, 1)
+  const entriesByGoal = entries.reduce((acc, entry) => {
+    if (!acc.has(entry.goal_id)) acc.set(entry.goal_id, [])
+    acc.get(entry.goal_id).push(entry)
+    return acc
+  }, new Map())
+
+  const goalStats = goals.map((goal) => {
+    const goalEntries = entriesByGoal.get(goal.id) || []
+    const completedDays = goalEntries.filter((entry) => entry.is_completed).length
+    const percent = Math.round((completedDays / elapsedCount) * 100)
+    const todayEntry = goalEntries.find((entry) => entry.entry_date === getTodayDate())
+    const subtitle =
+      goal.goal_type === 'time'
+        ? `Сегодня: ${formatHours(todayEntry?.actual_hours || 0)} из ${formatHours(goal.target_hours)}`
+        : todayEntry?.is_completed
+          ? 'Сегодня закрыто'
+          : 'Сегодня ждёт отметки'
+
+    return {
+      id: goal.id,
+      title: goal.title,
+      percent,
+      subtitle,
+    }
+  })
+
+  const timeStats = goals
+    .filter((goal) => goal.goal_type === 'time')
+    .map((goal) => {
+      const goalEntries = entriesByGoal.get(goal.id) || []
+      return {
+        id: goal.id,
+        title: goal.title,
+        targetHours: Number(goal.target_hours || 0),
+        totalHours: goalEntries.reduce((sum, entry) => sum + Number(entry.actual_hours || 0), 0),
+        completedDays: goalEntries.filter((entry) => entry.is_completed).length,
+      }
+    })
 
   return {
     currentDay,
@@ -918,6 +995,8 @@ function buildAnalytics(challenge, entries, totalGoals) {
     fullDays: elapsedDays.filter((day) => day.percent === 100).length,
     lowDays: elapsedDays.filter((day) => day.percent < 50).length,
     days,
+    goalStats,
+    timeStats,
   }
 }
 
