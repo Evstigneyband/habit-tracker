@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
 import {
   createChallenge,
@@ -665,7 +665,8 @@ function ChallengesScreen({
             key={challenge.id}
             challenge={normalizeChallenge(challenge, activeChallengeId)}
             open={openId === challenge.id}
-            onToggle={() => setOpenId(openId === challenge.id ? '' : challenge.id)}
+            onOpen={() => setOpenId(challenge.id)}
+            onClose={() => setOpenId('')}
             onSelect={() => onSelectChallenge(challenge.id)}
             onDelete={() => {
               setOpenId('')
@@ -678,7 +679,43 @@ function ChallengesScreen({
   )
 }
 
-function ChallengeRow({ challenge, open, onToggle, onSelect, onDelete }) {
+function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onDelete }) {
+  const pointerStart = useRef(null)
+  const suppressClick = useRef(false)
+
+  function handlePointerDown(event) {
+    pointerStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+    }
+    suppressClick.current = false
+  }
+
+  function handlePointerUp(event) {
+    if (!pointerStart.current) return
+
+    const deltaX = event.clientX - pointerStart.current.x
+    const deltaY = event.clientY - pointerStart.current.y
+    pointerStart.current = null
+
+    if (Math.abs(deltaX) < 34 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return
+
+    suppressClick.current = true
+    if (deltaX < 0) {
+      onOpen()
+    } else {
+      onClose()
+    }
+  }
+
+  function handleClick() {
+    if (suppressClick.current) {
+      suppressClick.current = false
+      return
+    }
+    onSelect()
+  }
+
   return (
     <article className={`challenge-row ${challenge.active ? 'active' : ''} ${open ? 'open' : ''}`}>
       <div className="challenge-actions">
@@ -689,7 +726,16 @@ function ChallengeRow({ challenge, open, onToggle, onSelect, onDelete }) {
           <CloseIcon />
         </button>
       </div>
-      <button className="challenge-card" type="button" onClick={open ? onSelect : onToggle}>
+      <button
+        className="challenge-card"
+        type="button"
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          pointerStart.current = null
+        }}
+      >
         <div>
           <strong>{challenge.title}</strong>
           <span>

@@ -547,6 +547,7 @@
   background: #fff;
   box-shadow: 0 5px 16px rgba(17, 24, 22, .05);
   text-align: left;
+  touch-action: pan-y;
   transition: transform .2s ease;
 }
 
