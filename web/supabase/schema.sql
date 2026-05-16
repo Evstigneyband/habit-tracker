@@ -74,6 +74,12 @@ alter table public.challenges enable row level security;
 alter table public.goals enable row level security;
 alter table public.daily_entries enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.challenges to authenticated;
+grant select, insert, update, delete on public.goals to authenticated;
+grant select, insert, update, delete on public.daily_entries to authenticated;
+
 create policy "Users can read own profile"
   on public.profiles for select
   using (auth.uid() = id);
