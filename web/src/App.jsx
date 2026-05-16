@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
-import { createChallenge, getChallengeGoals, getUserChallenges, setLastActiveChallenge } from './services/challengeService'
+import {
+  createChallenge,
+  getChallengeEntries,
+  getChallengeGoals,
+  getUserChallenges,
+  saveDailyEntry,
+  setLastActiveChallenge,
+} from './services/challengeService'
 import './App.css'
-
-const analyticsDays = Array.from({ length: 30 }, (_, index) => {
-  const day = index + 1
-  const percent = day === 1 ? 100 : day === 2 ? 85 : day === 3 ? 55 : day === 4 ? 50 : 0
-  return { day, percent, future: day > 4 }
-})
 
 function App() {
   const [isAuthed, setIsAuthed] = useState(false)
@@ -22,6 +23,8 @@ function App() {
   const [appError, setAppError] = useState('')
   const [simpleGoals, setSimpleGoals] = useState([])
   const [timeGoals, setTimeGoals] = useState([])
+  const [rawGoals, setRawGoals] = useState([])
+  const [dailyEntries, setDailyEntries] = useState([])
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
 
@@ -128,6 +131,8 @@ function App() {
     setActiveChallengeId('')
     setSimpleGoals([])
     setTimeGoals([])
+    setRawGoals([])
+    setDailyEntries([])
     setIsAuthed(false)
     setAuthMode('login')
     navigate('auth')
@@ -143,6 +148,8 @@ function App() {
       if (nextChallenges.length === 0) {
         setSimpleGoals([])
         setTimeGoals([])
+        setRawGoals([])
+        setDailyEntries([])
       }
       setActiveChallengeId((currentId) => {
         if (currentId && nextChallenges.some((challenge) => challenge.id === currentId)) return currentId
@@ -172,14 +179,20 @@ function App() {
     setAppError('')
 
     try {
-      const goals = await getChallengeGoals(challengeId)
+      const [goals, entries] = await Promise.all([
+        getChallengeGoals(challengeId),
+        getChallengeEntries(challengeId),
+      ])
+      const todayEntries = entries.filter((entry) => entry.entry_date === getTodayDate())
+      setRawGoals(goals)
+      setDailyEntries(entries)
       setSimpleGoals(
         goals
           .filter((goal) => goal.goal_type === 'simple')
           .map((goal) => ({
             id: goal.id,
             title: goal.title,
-            done: false,
+            done: Boolean(findEntry(todayEntries, goal.id)?.is_checked),
           })),
       )
       setTimeGoals(
@@ -189,7 +202,7 @@ function App() {
             id: goal.id,
             title: goal.title,
             target: Number(goal.target_hours || 0),
-            actual: 0,
+            actual: Number(findEntry(todayEntries, goal.id)?.actual_hours || 0),
           })),
       )
     } catch (error) {
@@ -220,16 +233,68 @@ function App() {
     }
   }
 
-  function toggleSimpleGoal(goalId) {
+  async function toggleSimpleGoal(goalId) {
+    const goal = simpleGoals.find((item) => item.id === goalId)
+    const rawGoal = rawGoals.find((item) => item.id === goalId)
+    if (!goal || !rawGoal || !activeChallenge) return
+
+    const nextDone = !goal.done
     setSimpleGoals((goals) =>
-      goals.map((goal) => (goal.id === goalId ? { ...goal, done: !goal.done } : goal)),
+      goals.map((item) => (item.id === goalId ? { ...item, done: nextDone } : item)),
     )
+
+    try {
+      const savedEntry = await saveDailyEntry({
+        challengeId: activeChallenge.id,
+        goal: rawGoal,
+        userId,
+        entryDate: getTodayDate(),
+        dayNumber: getChallengeDay(activeChallenge),
+        isChecked: nextDone,
+      })
+      upsertEntryState(savedEntry)
+    } catch (error) {
+      setAppError(error.message)
+      setSimpleGoals((goals) =>
+        goals.map((item) => (item.id === goalId ? { ...item, done: goal.done } : item)),
+      )
+    }
   }
 
-  function setTimeGoal(goalId, value) {
+  async function setTimeGoal(goalId, value) {
+    const goal = timeGoals.find((item) => item.id === goalId)
+    const rawGoal = rawGoals.find((item) => item.id === goalId)
+    if (!goal || !rawGoal || !activeChallenge) return
+
+    const nextActual = Number(value)
     setTimeGoals((goals) =>
-      goals.map((goal) => (goal.id === goalId ? { ...goal, actual: Number(value) } : goal)),
+      goals.map((item) => (item.id === goalId ? { ...item, actual: nextActual } : item)),
     )
+
+    try {
+      const savedEntry = await saveDailyEntry({
+        challengeId: activeChallenge.id,
+        goal: rawGoal,
+        userId,
+        entryDate: getTodayDate(),
+        dayNumber: getChallengeDay(activeChallenge),
+        actualHours: nextActual,
+      })
+      upsertEntryState(savedEntry)
+    } catch (error) {
+      setAppError(error.message)
+      setTimeGoals((goals) =>
+        goals.map((item) => (item.id === goalId ? { ...item, actual: goal.actual } : item)),
+      )
+    }
+  }
+
+  function upsertEntryState(entry) {
+    setDailyEntries((entries) => {
+      const exists = entries.some((item) => item.id === entry.id)
+      if (exists) return entries.map((item) => (item.id === entry.id ? entry : item))
+      return [...entries, entry]
+    })
   }
 
   if (isCheckingSession) {
@@ -290,7 +355,13 @@ function App() {
           onCurrent={() => navigate('today')}
         />
       )}
-      {screen === 'analytics' && <AnalyticsScreen challenge={activeChallenge} />}
+      {screen === 'analytics' && (
+        <AnalyticsScreen
+          challenge={activeChallenge}
+          dailyEntries={dailyEntries}
+          totalGoals={simpleGoals.length + timeGoals.length}
+        />
+      )}
       {screen === 'create' && <CreateChallengeScreen onSubmit={handleCreateChallenge} appError={appError} />}
     </AppShell>
   )
@@ -577,26 +648,33 @@ function ChallengeRow({ challenge, open, onToggle, onSelect }) {
   )
 }
 
-function AnalyticsScreen({ challenge }) {
+function AnalyticsScreen({ challenge, dailyEntries, totalGoals }) {
+  const analytics = useMemo(
+    () => buildAnalytics(challenge, dailyEntries, totalGoals),
+    [challenge, dailyEntries, totalGoals],
+  )
+
   return (
     <section className="screen">
       <div className="hero-card">
         <p className="eyebrow">Аналитика</p>
         <h2>{challenge?.title || 'Нет челленджа'}</h2>
-        <p>Аналитика обновляется по уже пройденным дням.</p>
+        <p>
+          День {analytics.currentDay} из {analytics.durationDays}. Данные обновляются по сохранённым отметкам.
+        </p>
       </div>
 
       <div className="metric-grid">
-        <Metric value="13%" label="Общий прогресс" />
-        <Metric value="73%" label="Средний день" />
-        <Metric value="1" label="Дней на 100%" />
-        <Metric value="0" label="Дней ниже 50%" />
+        <Metric value={`${analytics.overallPercent}%`} label="Общий прогресс" />
+        <Metric value={`${analytics.averagePercent}%`} label="Средний день" />
+        <Metric value={String(analytics.fullDays)} label="Дней на 100%" />
+        <Metric value={String(analytics.lowDays)} label="Дней ниже 50%" />
       </div>
 
       <section className="surface">
         <h2 className="section-heading">Календарь</h2>
         <div className="day-grid">
-          {analyticsDays.map((day) => (
+          {analytics.days.map((day) => (
             <div
               className={`day-cell ${day.future ? 'future' : day.percent === 100 ? 'good' : day.percent >= 50 ? 'mid' : 'low'}`}
               key={day.day}
@@ -787,6 +865,60 @@ function formatHours(value) {
   if (number === 1) return '1 час'
   if (number > 1 && number < 5) return `${number} часа`
   return `${number} часов`
+}
+
+function findEntry(entries, goalId) {
+  return entries.find((entry) => entry.goal_id === goalId)
+}
+
+function buildAnalytics(challenge, entries, totalGoals) {
+  if (!challenge) {
+    return {
+      currentDay: 0,
+      durationDays: 0,
+      overallPercent: 0,
+      averagePercent: 0,
+      fullDays: 0,
+      lowDays: 0,
+      days: [],
+    }
+  }
+
+  const currentDay = getChallengeDay(challenge)
+  const durationDays = challenge.duration_days
+  const entriesByDay = entries.reduce((acc, entry) => {
+    const day = Number(entry.day_number || 0)
+    if (!day) return acc
+    if (!acc.has(day)) acc.set(day, [])
+    acc.get(day).push(entry)
+    return acc
+  }, new Map())
+
+  const days = Array.from({ length: durationDays }, (_, index) => {
+    const day = index + 1
+    const dayEntries = entriesByDay.get(day) || []
+    const completed = dayEntries.filter((entry) => entry.is_completed).length
+    const percent = totalGoals ? Math.round((completed / totalGoals) * 100) : 0
+
+    return {
+      day,
+      percent,
+      future: day > currentDay,
+    }
+  })
+
+  const elapsedDays = days.filter((day) => !day.future)
+  const elapsedTotal = elapsedDays.reduce((sum, day) => sum + day.percent, 0)
+
+  return {
+    currentDay,
+    durationDays,
+    overallPercent: durationDays ? Math.round(elapsedTotal / durationDays) : 0,
+    averagePercent: elapsedDays.length ? Math.round(elapsedTotal / elapsedDays.length) : 0,
+    fullDays: elapsedDays.filter((day) => day.percent === 100).length,
+    lowDays: elapsedDays.filter((day) => day.percent < 50).length,
+    days,
+  }
 }
 
 function getTodayDate() {

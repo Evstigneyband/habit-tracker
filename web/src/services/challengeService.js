@@ -105,3 +105,55 @@ export async function getTodayEntries(challengeId, entryDate) {
   if (error) throw error
   return data
 }
+
+export async function getChallengeEntries(challengeId) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('daily_entries')
+    .select('*')
+    .eq('challenge_id', challengeId)
+    .order('entry_date', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function saveDailyEntry({
+  challengeId,
+  goal,
+  userId,
+  entryDate,
+  dayNumber,
+  isChecked = false,
+  actualHours = 0,
+}) {
+  const supabase = requireSupabase()
+  const isTimeGoal = goal.goal_type === 'time'
+  const targetHours = isTimeGoal ? Number(goal.target_hours || goal.target || 0) : null
+  const completed = isTimeGoal ? Number(actualHours) >= targetHours : Boolean(isChecked)
+
+  const { data, error } = await supabase
+    .from('daily_entries')
+    .upsert(
+      {
+        challenge_id: challengeId,
+        goal_id: goal.id,
+        user_id: userId,
+        entry_date: entryDate,
+        day_number: dayNumber,
+        goal_type: goal.goal_type,
+        is_checked: !isTimeGoal && Boolean(isChecked),
+        target_hours: targetHours,
+        actual_hours: isTimeGoal ? Number(actualHours) : 0,
+        is_completed: completed,
+        completion_percent: completed ? 100 : 0,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'goal_id,entry_date' },
+    )
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data
+}
