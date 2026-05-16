@@ -241,6 +241,23 @@
   box-shadow: 0 0 0 4px rgba(36, 151, 101, .12);
 }
 
+.form-error {
+  margin: 0;
+  color: #c6332d;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.muted-state {
+  margin: 0;
+  padding: 12px 4px;
+  color: #68736f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 .primary-button {
   min-height: 42px;
   border: 0;

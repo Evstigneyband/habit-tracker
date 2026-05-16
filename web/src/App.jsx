@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
+import { createChallenge, getUserChallenges, setLastActiveChallenge } from './services/challengeService'
 import './App.css'
 
 const simpleSeed = [
@@ -14,36 +16,6 @@ const timeSeed = [
   { id: 'time-2', title: 'Evstignev', target: 4, actual: 4 },
 ]
 
-const challengeSeed = [
-  {
-    id: 'challenge-1',
-    title: 'Майский рывок',
-    day: 4,
-    days: 30,
-    goals: 7,
-    startDate: '12.05.2026',
-    active: true,
-  },
-  {
-    id: 'challenge-2',
-    title: 'Ruru',
-    day: 1,
-    days: 5,
-    goals: 5,
-    startDate: '15.05.2026',
-    active: false,
-  },
-  {
-    id: 'challenge-3',
-    title: 'Test',
-    day: 1,
-    days: 10,
-    goals: 6,
-    startDate: '15.05.2026',
-    active: false,
-  },
-]
-
 const analyticsDays = Array.from({ length: 30 }, (_, index) => {
   const day = index + 1
   const percent = day === 1 ? 100 : day === 2 ? 85 : day === 3 ? 55 : day === 4 ? 50 : 0
@@ -51,11 +23,46 @@ const analyticsDays = Array.from({ length: 30 }, (_, index) => {
 })
 
 function App() {
-  const [isAuthed, setIsAuthed] = useState(true)
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [userId, setUserId] = useState('')
+  const [userEmail, setUserEmail] = useState('')
   const [screen, setScreen] = useState('today')
+  const [challenges, setChallenges] = useState([])
+  const [activeChallengeId, setActiveChallengeId] = useState('')
+  const [isLoadingChallenges, setIsLoadingChallenges] = useState(false)
+  const [appError, setAppError] = useState('')
   const [simpleGoals, setSimpleGoals] = useState(simpleSeed)
   const [timeGoals, setTimeGoals] = useState(timeSeed)
   const [authMode, setAuthMode] = useState('login')
+  const [authError, setAuthError] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    getCurrentSession()
+      .then((session) => {
+        if (!isMounted) return
+
+        if (session?.user) {
+          setUserId(session.user.id)
+          setUserEmail(session.user.email || '')
+          setIsAuthed(true)
+          loadChallenges(session.user.id)
+          navigate('today')
+        }
+      })
+      .catch((error) => {
+        if (isMounted) setAuthError(error.message)
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingSession(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const progress = useMemo(() => {
     const simpleDone = simpleGoals.filter((goal) => goal.done).length
@@ -70,21 +77,107 @@ function App() {
     }
   }, [simpleGoals, timeGoals])
 
+  const activeChallenge = useMemo(
+    () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
+    [activeChallengeId, challenges],
+  )
+
   function navigate(nextScreen) {
     setScreen(nextScreen)
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
   }
 
-  function login(event) {
+  async function login(event) {
     event.preventDefault()
-    setIsAuthed(true)
-    navigate('today')
+
+    const formData = new FormData(event.currentTarget)
+    const email = String(formData.get('email') || '').trim()
+    const password = String(formData.get('password') || '')
+
+    setAuthError('')
+
+    try {
+      const data =
+        authMode === 'login'
+          ? await signInWithEmail(email, password)
+          : await signUpWithEmail(email, password)
+
+      const user = data.user || data.session?.user
+
+      if (!user) {
+        setAuthError('Проверь почту и подтверди регистрацию, потом войди с этим email и паролем.')
+        return
+      }
+
+      setUserEmail(user.email || email)
+      setUserId(user.id)
+      setIsAuthed(true)
+      await loadChallenges(user.id)
+      navigate('today')
+    } catch (error) {
+      setAuthError(error.message)
+    }
   }
 
-  function logout() {
+  async function logout() {
+    setAuthError('')
+    await signOut()
+    setUserId('')
+    setUserEmail('')
+    setChallenges([])
+    setActiveChallengeId('')
     setIsAuthed(false)
     setAuthMode('login')
     navigate('auth')
+  }
+
+  async function loadChallenges(nextUserId) {
+    setIsLoadingChallenges(true)
+    setAppError('')
+
+    try {
+      const nextChallenges = await getUserChallenges(nextUserId)
+      setChallenges(nextChallenges)
+      setActiveChallengeId((currentId) => {
+        if (currentId && nextChallenges.some((challenge) => challenge.id === currentId)) return currentId
+        return nextChallenges[0]?.id || ''
+      })
+    } catch (error) {
+      setAppError(error.message)
+    } finally {
+      setIsLoadingChallenges(false)
+    }
+  }
+
+  async function selectChallenge(challengeId) {
+    setActiveChallengeId(challengeId)
+    setScreen('today')
+    setAppError('')
+
+    try {
+      await setLastActiveChallenge(userId, challengeId)
+    } catch (error) {
+      setAppError(error.message)
+    }
+  }
+
+  async function handleCreateChallenge(payload) {
+    setAppError('')
+
+    try {
+      const createdChallenge = await createChallenge({
+        userId,
+        title: payload.title,
+        durationDays: payload.durationDays,
+        startDate: getTodayDate(),
+      })
+      setChallenges((current) => [createdChallenge, ...current])
+      setActiveChallengeId(createdChallenge.id)
+      await setLastActiveChallenge(userId, createdChallenge.id)
+      navigate('today')
+    } catch (error) {
+      setAppError(error.message)
+    }
   }
 
   function toggleSimpleGoal(goalId) {
@@ -99,6 +192,20 @@ function App() {
     )
   }
 
+  if (isCheckingSession) {
+    return (
+      <AppShell caption="Личный трекер прогресса" showMenu={false} screen={screen} navigate={navigate} logout={logout}>
+        <section className="screen">
+          <div className="hero-card">
+            <p className="eyebrow">Подключаемся</p>
+            <h2>Проверяю вход.</h2>
+            <p>Сейчас приложение смотрит, есть ли сохранённая сессия Supabase.</p>
+          </div>
+        </section>
+      </AppShell>
+    )
+  }
+
   if (!isAuthed) {
     return (
       <AppShell
@@ -108,14 +215,14 @@ function App() {
         navigate={navigate}
         logout={logout}
       >
-        <AuthScreen authMode={authMode} setAuthMode={setAuthMode} onSubmit={login} />
+        <AuthScreen authMode={authMode} setAuthMode={setAuthMode} onSubmit={login} authError={authError} />
       </AppShell>
     )
   }
 
   return (
     <AppShell
-      caption="ruslan-hamzin@mail.ru"
+      caption={userEmail}
       showMenu
       screen={screen}
       navigate={navigate}
@@ -124,15 +231,26 @@ function App() {
       {screen === 'today' && (
         <TodayScreen
           progress={progress}
+          challenge={activeChallenge}
+          appError={appError}
           simpleGoals={simpleGoals}
           timeGoals={timeGoals}
           onToggleSimple={toggleSimpleGoal}
           onSetTime={setTimeGoal}
         />
       )}
-      {screen === 'challenges' && <ChallengesScreen />}
-      {screen === 'analytics' && <AnalyticsScreen />}
-      {screen === 'create' && <CreateChallengeScreen />}
+      {screen === 'challenges' && (
+        <ChallengesScreen
+          challenges={challenges}
+          activeChallengeId={activeChallengeId}
+          isLoading={isLoadingChallenges}
+          onSelectChallenge={selectChallenge}
+          onCreate={() => navigate('create')}
+          onCurrent={() => navigate('today')}
+        />
+      )}
+      {screen === 'analytics' && <AnalyticsScreen challenge={activeChallenge} />}
+      {screen === 'create' && <CreateChallengeScreen onSubmit={handleCreateChallenge} appError={appError} />}
     </AppShell>
   )
 }
@@ -179,7 +297,7 @@ function AppShell({ caption, showMenu, screen, navigate, logout, children }) {
   )
 }
 
-function AuthScreen({ authMode, setAuthMode, onSubmit }) {
+function AuthScreen({ authMode, setAuthMode, onSubmit, authError }) {
   return (
     <section className="screen">
       <div className="hero-card">
@@ -210,12 +328,19 @@ function AuthScreen({ authMode, setAuthMode, onSubmit }) {
         </div>
         <label className="field">
           <span>Email</span>
-          <input type="email" autoComplete="email" />
+          <input name="email" type="email" autoComplete="email" required />
         </label>
         <label className="field">
           <span>Пароль</span>
-          <input type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} />
+          <input
+            name="password"
+            type="password"
+            autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+            minLength={6}
+            required
+          />
         </label>
+        {authError && <p className="form-error">{authError}</p>}
         <button className="primary-button" type="submit">
           {authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
         </button>
@@ -224,10 +349,24 @@ function AuthScreen({ authMode, setAuthMode, onSubmit }) {
   )
 }
 
-function TodayScreen({ progress, simpleGoals, timeGoals, onToggleSimple, onSetTime }) {
+function TodayScreen({ progress, challenge, appError, simpleGoals, timeGoals, onToggleSimple, onSetTime }) {
+  if (!challenge) {
+    return (
+      <section className="screen">
+        <div className="hero-card">
+          <p className="eyebrow">Первый челлендж</p>
+          <h2>Создай старт.</h2>
+          <p>Пока в Supabase нет ни одного челленджа для этого аккаунта. Нажми меню сверху или вкладку “Все челленджи”, чтобы создать первый.</p>
+        </div>
+        {appError && <p className="form-error">{appError}</p>}
+      </section>
+    )
+  }
+
   return (
     <section className="screen">
-      <ProgressCard progress={progress} />
+      <ProgressCard progress={progress} challenge={challenge} />
+      {appError && <p className="form-error">{appError}</p>}
 
       <GoalSection title="Простые цели">
         {simpleGoals.map((goal) => (
@@ -244,13 +383,13 @@ function TodayScreen({ progress, simpleGoals, timeGoals, onToggleSimple, onSetTi
   )
 }
 
-function ProgressCard({ progress }) {
+function ProgressCard({ progress, challenge }) {
   return (
     <section className="progress-card">
       <div className="progress-head">
         <div>
-          <h2>Майский рывок</h2>
-          <p>День 4 из 30</p>
+          <h2>{challenge.title}</h2>
+          <p>День {getChallengeDay(challenge)} из {challenge.duration_days}</p>
         </div>
         <strong>{progress.todayPercent}%</strong>
       </div>
@@ -325,7 +464,7 @@ function TimeGoalRow({ goal, onChange }) {
   )
 }
 
-function ChallengesScreen() {
+function ChallengesScreen({ challenges, activeChallengeId, isLoading, onSelectChallenge, onCreate, onCurrent }) {
   const [openId, setOpenId] = useState('')
 
   return (
@@ -338,18 +477,21 @@ function ChallengesScreen() {
           переключиться на любой другой.
         </p>
         <div className="hero-actions">
-          <button type="button">Создать новый</button>
-          <button type="button">Текущий</button>
+          <button type="button" onClick={onCreate}>Создать новый</button>
+          <button type="button" onClick={onCurrent}>Текущий</button>
         </div>
       </div>
 
       <div className="challenge-list">
-        {challengeSeed.map((challenge) => (
+        {isLoading && <p className="muted-state">Загружаю челленджи...</p>}
+        {!isLoading && challenges.length === 0 && <p className="muted-state">Пока нет челленджей. Создай первый.</p>}
+        {challenges.map((challenge) => (
           <ChallengeRow
             key={challenge.id}
-            challenge={challenge}
+            challenge={normalizeChallenge(challenge, activeChallengeId)}
             open={openId === challenge.id}
             onToggle={() => setOpenId(openId === challenge.id ? '' : challenge.id)}
+            onSelect={() => onSelectChallenge(challenge.id)}
           />
         ))}
       </div>
@@ -357,7 +499,7 @@ function ChallengesScreen() {
   )
 }
 
-function ChallengeRow({ challenge, open, onToggle }) {
+function ChallengeRow({ challenge, open, onToggle, onSelect }) {
   return (
     <article className={`challenge-row ${challenge.active ? 'active' : ''} ${open ? 'open' : ''}`}>
       <div className="challenge-actions">
@@ -368,7 +510,7 @@ function ChallengeRow({ challenge, open, onToggle }) {
           <CloseIcon />
         </button>
       </div>
-      <button className="challenge-card" type="button" onClick={onToggle}>
+      <button className="challenge-card" type="button" onClick={open ? onSelect : onToggle}>
         <div>
           <strong>{challenge.title}</strong>
           <span>
@@ -383,13 +525,13 @@ function ChallengeRow({ challenge, open, onToggle }) {
   )
 }
 
-function AnalyticsScreen() {
+function AnalyticsScreen({ challenge }) {
   return (
     <section className="screen">
       <div className="hero-card">
         <p className="eyebrow">Аналитика</p>
-        <h2>Майский рывок</h2>
-        <p>День 4 из 30. Аналитика обновляется по уже пройденным дням.</p>
+        <h2>{challenge?.title || 'Нет челленджа'}</h2>
+        <p>Аналитика обновляется по уже пройденным дням.</p>
       </div>
 
       <div className="metric-grid">
@@ -417,7 +559,16 @@ function AnalyticsScreen() {
   )
 }
 
-function CreateChallengeScreen() {
+function CreateChallengeScreen({ onSubmit, appError }) {
+  function submit(event) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    onSubmit({
+      title: String(formData.get('title') || '').trim(),
+      durationDays: Number(formData.get('durationDays') || 30),
+    })
+  }
+
   return (
     <section className="screen">
       <div className="hero-card">
@@ -426,16 +577,17 @@ function CreateChallengeScreen() {
         <p>Все цели получают одинаковый вес. Если целей десять, каждая закрытая цель добавляет 10% к дню.</p>
       </div>
 
-      <form className="surface form">
+      <form className="surface form" onSubmit={submit}>
         <label className="field">
           <span>Название челленджа</span>
-          <input placeholder="Например: Майский рывок" />
+          <input name="title" placeholder="Например: Майский рывок" required />
         </label>
         <label className="field">
           <span>Количество дней</span>
-          <input type="number" defaultValue={30} min={1} max={365} />
+          <input name="durationDays" type="number" defaultValue={30} min={1} max={365} required />
         </label>
-        <button className="primary-button" type="button">
+        {appError && <p className="form-error">{appError}</p>}
+        <button className="primary-button" type="submit">
           Начать челлендж
         </button>
       </form>
@@ -471,6 +623,35 @@ function formatHours(value) {
   if (number === 1) return '1 час'
   if (number > 1 && number < 5) return `${number} часа`
   return `${number} часов`
+}
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function getChallengeDay(challenge) {
+  const start = new Date(`${challenge.start_date}T00:00:00`)
+  const today = new Date(`${getTodayDate()}T00:00:00`)
+  const diff = Math.floor((today - start) / 86_400_000) + 1
+  return Math.min(Math.max(diff, 1), challenge.duration_days)
+}
+
+function formatDate(dateString) {
+  if (!dateString) return ''
+  const [year, month, day] = dateString.split('-')
+  return `${day}.${month}.${year}`
+}
+
+function normalizeChallenge(challenge, activeChallengeId) {
+  return {
+    id: challenge.id,
+    title: challenge.title,
+    day: getChallengeDay(challenge),
+    days: challenge.duration_days,
+    goals: challenge.total_goals,
+    startDate: formatDate(challenge.start_date),
+    active: challenge.id === activeChallengeId,
+  }
 }
 
 function ListIcon() {
