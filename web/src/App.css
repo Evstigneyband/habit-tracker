@@ -450,6 +450,41 @@
   background: #f4f5f3;
 }
 
+.draft-text-edit,
+.draft-time-edit {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.draft-time-edit {
+  grid-template-columns: minmax(0, 1fr) 112px;
+}
+
+.draft-text-edit input,
+.draft-time-edit input,
+.draft-time-edit select {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e2e8e4;
+  border-radius: 10px;
+  outline: 0;
+  color: #111816;
+  background: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.draft-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.draft-actions button:disabled {
+  opacity: .35;
+}
+
 .draft-goals svg {
   width: 16px;
   height: 16px;

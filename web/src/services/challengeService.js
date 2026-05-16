@@ -101,6 +101,88 @@ export async function deleteChallenge({ userId, challengeId }) {
   if (error) throw error
 }
 
+export async function restartChallenge({
+  userId,
+  challengeId,
+  title,
+  durationDays,
+  startDate,
+  simpleGoals = [],
+  timeGoals = [],
+}) {
+  const supabase = requireSupabase()
+  const endDate = addDays(startDate, durationDays - 1)
+  const totalGoals = simpleGoals.length + timeGoals.length
+  const now = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from('challenges')
+    .update({
+      title,
+      duration_days: durationDays,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+      total_goals: totalGoals,
+      updated_at: now,
+      completed_at: null,
+    })
+    .eq('id', challengeId)
+    .eq('user_id', userId)
+    .select('*')
+    .single()
+
+  if (error) throw error
+
+  const { error: archiveError } = await supabase
+    .from('goals')
+    .update({
+      is_active: false,
+      archived_at: now,
+      updated_at: now,
+    })
+    .eq('challenge_id', challengeId)
+    .eq('user_id', userId)
+
+  if (archiveError) throw archiveError
+
+  const { error: entriesError } = await supabase
+    .from('daily_entries')
+    .delete()
+    .eq('challenge_id', challengeId)
+    .eq('user_id', userId)
+
+  if (entriesError) throw entriesError
+
+  const goalRows = [
+    ...simpleGoals.map((goal, index) => ({
+      challenge_id: challengeId,
+      user_id: userId,
+      goal_type: 'simple',
+      title: goal.title,
+      sort_order: index,
+      weight: 1,
+    })),
+    ...timeGoals.map((goal, index) => ({
+      challenge_id: challengeId,
+      user_id: userId,
+      goal_type: 'time',
+      title: goal.title,
+      target_hours: goal.targetHours,
+      sort_order: simpleGoals.length + index,
+      weight: 1,
+    })),
+  ]
+
+  if (goalRows.length > 0) {
+    const { error: goalsError } = await supabase.from('goals').insert(goalRows)
+
+    if (goalsError) throw goalsError
+  }
+
+  return data
+}
+
 export async function getChallengeGoals(challengeId) {
   const supabase = requireSupabase()
   const { data, error } = await supabase

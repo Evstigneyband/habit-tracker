@@ -8,6 +8,7 @@ import {
   getChallengeGoals,
   getUserProfile,
   getUserChallenges,
+  restartChallenge,
   saveDailyEntry,
   setLastActiveChallenge,
 } from './services/challengeService'
@@ -31,6 +32,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
+  const [editingChallenge, setEditingChallenge] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -120,6 +122,7 @@ function App() {
   }, [activeChallenge, simpleGoals, timeGoals])
 
   function navigate(nextScreen) {
+    if (nextScreen !== 'create') setEditingChallenge(null)
     setScreen(nextScreen)
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
   }
@@ -287,6 +290,31 @@ function App() {
     setAppError('')
 
     try {
+      if (editingChallenge) {
+        const restartedChallenge = await restartChallenge({
+          userId,
+          challengeId: editingChallenge.id,
+          title: payload.title,
+          durationDays: payload.durationDays,
+          startDate: getTodayDate(),
+          simpleGoals: payload.simpleGoals,
+          timeGoals: payload.timeGoals,
+        })
+        setChallenges((current) =>
+          current.map((challenge) => (challenge.id === restartedChallenge.id ? restartedChallenge : challenge)),
+        )
+        setActiveChallengeId(restartedChallenge.id)
+        setSimpleGoals([])
+        setTimeGoals([])
+        setRawGoals([])
+        setDailyEntries([])
+        setEditingChallenge(null)
+        await setLastActiveChallenge(userId, restartedChallenge.id)
+        await loadGoals(restartedChallenge.id)
+        navigate('today')
+        return
+      }
+
       const createdChallenge = await createChallenge({
         userId,
         title: payload.title,
@@ -299,6 +327,36 @@ function App() {
       setActiveChallengeId(createdChallenge.id)
       await setLastActiveChallenge(userId, createdChallenge.id)
       navigate('today')
+    } catch (error) {
+      setAppError(error.message)
+    }
+  }
+
+  async function handleEditChallenge(challengeId) {
+    const challenge = challenges.find((item) => item.id === challengeId)
+    if (!challenge) return
+
+    setAppError('')
+
+    try {
+      const goals = await getChallengeGoals(challengeId)
+      setEditingChallenge({
+        id: challenge.id,
+        title: challenge.title,
+        durationDays: challenge.duration_days,
+        simpleGoals: goals
+          .filter((goal) => goal.goal_type === 'simple')
+          .map((goal) => ({ id: crypto.randomUUID(), title: goal.title })),
+        timeGoals: goals
+          .filter((goal) => goal.goal_type === 'time')
+          .map((goal) => ({
+            id: crypto.randomUUID(),
+            title: goal.title,
+            targetHours: Number(goal.target_hours || 0),
+          })),
+      })
+      setScreen('create')
+      requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
     } catch (error) {
       setAppError(error.message)
     }
@@ -424,6 +482,7 @@ function App() {
           appError={appError}
           onSelectChallenge={selectChallenge}
           onDeleteChallenge={handleDeleteChallenge}
+          onEditChallenge={handleEditChallenge}
           onCreate={() => navigate('create')}
           onCurrent={() => navigate('today')}
         />
@@ -436,7 +495,14 @@ function App() {
           totalGoals={simpleGoals.length + timeGoals.length}
         />
       )}
-      {screen === 'create' && <CreateChallengeScreen onSubmit={handleCreateChallenge} appError={appError} />}
+      {screen === 'create' && (
+        <CreateChallengeScreen
+          key={editingChallenge?.id || 'new'}
+          onSubmit={handleCreateChallenge}
+          appError={appError}
+          editingChallenge={editingChallenge}
+        />
+      )}
     </AppShell>
   )
 }
@@ -682,6 +748,7 @@ function ChallengesScreen({
   appError,
   onSelectChallenge,
   onDeleteChallenge,
+  onEditChallenge,
   onCreate,
   onCurrent,
 }) {
@@ -714,6 +781,10 @@ function ChallengesScreen({
             onOpen={() => setOpenId(challenge.id)}
             onClose={() => setOpenId('')}
             onSelect={() => onSelectChallenge(challenge.id)}
+            onEdit={() => {
+              setOpenId('')
+              onEditChallenge(challenge.id)
+            }}
             onDelete={() => {
               setOpenId('')
               onDeleteChallenge(challenge.id)
@@ -725,7 +796,7 @@ function ChallengesScreen({
   )
 }
 
-function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onDelete }) {
+function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDelete }) {
   const pointerStart = useRef(null)
   const suppressClick = useRef(false)
 
@@ -765,7 +836,7 @@ function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onDelete }) 
   return (
     <article className={`challenge-row ${challenge.active ? 'active' : ''} ${open ? 'open' : ''}`}>
       <div className="challenge-actions">
-        <button type="button" aria-label="Редактировать челлендж">
+        <button type="button" onClick={onEdit} aria-label="Редактировать челлендж">
           <EditIcon />
         </button>
         <button className="delete" type="button" onClick={onDelete} aria-label="Удалить челлендж">
@@ -867,12 +938,13 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
   )
 }
 
-function CreateChallengeScreen({ onSubmit, appError }) {
+function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
+  const isEditing = Boolean(editingChallenge)
   const [simpleDraft, setSimpleDraft] = useState('')
   const [timeDraftTitle, setTimeDraftTitle] = useState('')
   const [timeDraftHours, setTimeDraftHours] = useState(1)
-  const [simpleGoals, setSimpleGoals] = useState([])
-  const [timeGoals, setTimeGoals] = useState([])
+  const [simpleGoals, setSimpleGoals] = useState(editingChallenge?.simpleGoals || [])
+  const [timeGoals, setTimeGoals] = useState(editingChallenge?.timeGoals || [])
   const [localError, setLocalError] = useState('')
 
   function addSimpleGoal() {
@@ -905,11 +977,47 @@ function CreateChallengeScreen({ onSubmit, appError }) {
     setTimeGoals((goals) => goals.filter((goal) => goal.id !== goalId))
   }
 
+  function updateGoal(type, goalId, field, value) {
+    const updater = (goal) =>
+      goal.id === goalId
+        ? { ...goal, [field]: field === 'targetHours' ? Number(value || 0) : value }
+        : goal
+
+    if (type === 'simple') setSimpleGoals((goals) => goals.map(updater))
+    if (type === 'time') setTimeGoals((goals) => goals.map(updater))
+  }
+
+  function moveGoal(type, goalId, direction) {
+    const move = (goals) => {
+      const index = goals.findIndex((goal) => goal.id === goalId)
+      const nextIndex = index + direction
+      if (index < 0 || nextIndex < 0 || nextIndex >= goals.length) return goals
+
+      const nextGoals = [...goals]
+      const [item] = nextGoals.splice(index, 1)
+      nextGoals.splice(nextIndex, 0, item)
+      return nextGoals
+    }
+
+    if (type === 'simple') setSimpleGoals(move)
+    if (type === 'time') setTimeGoals(move)
+  }
+
   function submit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    const normalizedSimpleGoals = simpleGoals
+      .map((goal) => ({ ...goal, title: goal.title.trim() }))
+      .filter((goal) => goal.title)
+    const normalizedTimeGoals = timeGoals
+      .map((goal) => ({
+        ...goal,
+        title: goal.title.trim(),
+        targetHours: Number(goal.targetHours || 0),
+      }))
+      .filter((goal) => goal.title && goal.targetHours > 0)
 
-    if (simpleGoals.length + timeGoals.length === 0) {
+    if (normalizedSimpleGoals.length + normalizedTimeGoals.length === 0) {
       setLocalError('Добавь хотя бы одну цель.')
       return
     }
@@ -917,27 +1025,31 @@ function CreateChallengeScreen({ onSubmit, appError }) {
     onSubmit({
       title: String(formData.get('title') || '').trim(),
       durationDays: Number(formData.get('durationDays') || 30),
-      simpleGoals,
-      timeGoals,
+      simpleGoals: normalizedSimpleGoals,
+      timeGoals: normalizedTimeGoals,
     })
   }
 
   return (
     <section className="screen">
       <div className="hero-card">
-        <p className="eyebrow">Новый старт</p>
-        <h2>Создай челлендж.</h2>
-        <p>Все цели получают одинаковый вес. Если целей десять, каждая закрытая цель добавляет 10% к дню.</p>
+        <p className="eyebrow">{isEditing ? 'Редактирование' : 'Новый старт'}</p>
+        <h2>{isEditing ? 'Редактируй челлендж.' : 'Создай челлендж.'}</h2>
+        <p>
+          {isEditing
+            ? 'После сохранения челлендж начнется заново с сегодняшней даты, а текущие отметки сбросятся.'
+            : 'Все цели получают одинаковый вес. Если целей десять, каждая закрытая цель добавляет 10% к дню.'}
+        </p>
       </div>
 
       <form className="surface form" onSubmit={submit}>
         <label className="field">
           <span>Название челленджа</span>
-          <input name="title" placeholder="Например: Майский рывок" required />
+          <input name="title" defaultValue={editingChallenge?.title || ''} placeholder="Например: Майский рывок" required />
         </label>
         <label className="field">
           <span>Количество дней</span>
-          <input name="durationDays" type="number" defaultValue={30} min={1} max={365} required />
+          <input name="durationDays" type="number" defaultValue={editingChallenge?.durationDays || 30} min={1} max={365} required />
         </label>
         <div className="goal-builder">
           <div>
@@ -960,7 +1072,13 @@ function CreateChallengeScreen({ onSubmit, appError }) {
               +
             </button>
           </div>
-          <DraftGoalList goals={simpleGoals} onRemove={removeSimpleGoal} />
+          <DraftGoalList
+            goals={simpleGoals}
+            onRemove={removeSimpleGoal}
+            onUpdate={(goalId, field, value) => updateGoal('simple', goalId, field, value)}
+            onMove={(goalId, direction) => moveGoal('simple', goalId, direction)}
+            editable={isEditing}
+          />
         </div>
 
         <div className="goal-builder">
@@ -985,27 +1103,61 @@ function CreateChallengeScreen({ onSubmit, appError }) {
               +
             </button>
           </div>
-          <DraftGoalList goals={timeGoals} onRemove={removeTimeGoal} withHours />
+          <DraftGoalList
+            goals={timeGoals}
+            onRemove={removeTimeGoal}
+            onUpdate={(goalId, field, value) => updateGoal('time', goalId, field, value)}
+            onMove={(goalId, direction) => moveGoal('time', goalId, direction)}
+            withHours
+            editable={isEditing}
+          />
         </div>
 
         {(localError || appError) && <p className="form-error">{localError || appError}</p>}
         <button className="primary-button" type="submit">
-          Начать челлендж
+          {isEditing ? 'Перезапустить челлендж' : 'Начать челлендж'}
         </button>
       </form>
     </section>
   )
 }
 
-function DraftGoalList({ goals, onRemove, withHours = false }) {
+function DraftGoalList({ goals, onRemove, onUpdate, onMove, withHours = false, editable = false }) {
   if (goals.length === 0) return null
 
   return (
     <div className="draft-goals">
-      {goals.map((goal) => (
+      {goals.map((goal, index) => (
         <div key={goal.id}>
-          <span>{goal.title}</span>
-          {withHours && <small>{formatHours(goal.targetHours)}</small>}
+          {editable ? (
+            <div className={withHours ? 'draft-time-edit' : 'draft-text-edit'}>
+              <input value={goal.title} onChange={(event) => onUpdate(goal.id, 'title', event.target.value)} />
+              {withHours && (
+                <select value={goal.targetHours} onChange={(event) => onUpdate(goal.id, 'targetHours', event.target.value)}>
+                  {timeOptions.filter((value) => value > 0).map((value) => (
+                    <option key={value} value={value}>
+                      {formatHours(value)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ) : (
+            <>
+              <span>{goal.title}</span>
+              {withHours && <small>{formatHours(goal.targetHours)}</small>}
+            </>
+          )}
+          {editable && (
+            <div className="draft-actions">
+              <button type="button" onClick={() => onMove(goal.id, -1)} disabled={index === 0} aria-label="Выше">
+                ↑
+              </button>
+              <button type="button" onClick={() => onMove(goal.id, 1)} disabled={index === goals.length - 1} aria-label="Ниже">
+                ↓
+              </button>
+            </div>
+          )}
           <button type="button" onClick={() => onRemove(goal.id)} aria-label="Убрать цель">
             <CloseIcon />
           </button>
