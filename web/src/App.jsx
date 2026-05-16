@@ -170,6 +170,8 @@ function App() {
         title: payload.title,
         durationDays: payload.durationDays,
         startDate: getTodayDate(),
+        simpleGoals: payload.simpleGoals,
+        timeGoals: payload.timeGoals,
       })
       setChallenges((current) => [createdChallenge, ...current])
       setActiveChallengeId(createdChallenge.id)
@@ -560,12 +562,57 @@ function AnalyticsScreen({ challenge }) {
 }
 
 function CreateChallengeScreen({ onSubmit, appError }) {
+  const [simpleDraft, setSimpleDraft] = useState('')
+  const [timeDraftTitle, setTimeDraftTitle] = useState('')
+  const [timeDraftHours, setTimeDraftHours] = useState(1)
+  const [simpleGoals, setSimpleGoals] = useState([])
+  const [timeGoals, setTimeGoals] = useState([])
+  const [localError, setLocalError] = useState('')
+
+  function addSimpleGoal() {
+    const title = simpleDraft.trim()
+    if (!title) return
+
+    setSimpleGoals((goals) => [...goals, { id: crypto.randomUUID(), title }])
+    setSimpleDraft('')
+    setLocalError('')
+  }
+
+  function addTimeGoal() {
+    const title = timeDraftTitle.trim()
+    if (!title) return
+
+    setTimeGoals((goals) => [
+      ...goals,
+      { id: crypto.randomUUID(), title, targetHours: Number(timeDraftHours) },
+    ])
+    setTimeDraftTitle('')
+    setTimeDraftHours(1)
+    setLocalError('')
+  }
+
+  function removeSimpleGoal(goalId) {
+    setSimpleGoals((goals) => goals.filter((goal) => goal.id !== goalId))
+  }
+
+  function removeTimeGoal(goalId) {
+    setTimeGoals((goals) => goals.filter((goal) => goal.id !== goalId))
+  }
+
   function submit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+
+    if (simpleGoals.length + timeGoals.length === 0) {
+      setLocalError('Добавь хотя бы одну цель.')
+      return
+    }
+
     onSubmit({
       title: String(formData.get('title') || '').trim(),
       durationDays: Number(formData.get('durationDays') || 30),
+      simpleGoals,
+      timeGoals,
     })
   }
 
@@ -586,12 +633,79 @@ function CreateChallengeScreen({ onSubmit, appError }) {
           <span>Количество дней</span>
           <input name="durationDays" type="number" defaultValue={30} min={1} max={365} required />
         </label>
-        {appError && <p className="form-error">{appError}</p>}
+        <div className="goal-builder">
+          <div>
+            <h3>Простые цели</h3>
+            <p>Отмечаются галочкой.</p>
+          </div>
+          <div className="add-row">
+            <input
+              value={simpleDraft}
+              onChange={(event) => setSimpleDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  addSimpleGoal()
+                }
+              }}
+              placeholder="Например: спорт"
+            />
+            <button type="button" onClick={addSimpleGoal} aria-label="Добавить простую цель">
+              +
+            </button>
+          </div>
+          <DraftGoalList goals={simpleGoals} onRemove={removeSimpleGoal} />
+        </div>
+
+        <div className="goal-builder">
+          <div>
+            <h3>Цели по часам</h3>
+            <p>Закрываются, когда набрано нужное время.</p>
+          </div>
+          <div className="add-row time-add-row">
+            <input
+              value={timeDraftTitle}
+              onChange={(event) => setTimeDraftTitle(event.target.value)}
+              placeholder="Например: Wizard Elements"
+            />
+            <select value={timeDraftHours} onChange={(event) => setTimeDraftHours(event.target.value)}>
+              {timeOptions.filter((value) => value > 0).map((value) => (
+                <option key={value} value={value}>
+                  {formatHours(value)}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={addTimeGoal} aria-label="Добавить цель по часам">
+              +
+            </button>
+          </div>
+          <DraftGoalList goals={timeGoals} onRemove={removeTimeGoal} withHours />
+        </div>
+
+        {(localError || appError) && <p className="form-error">{localError || appError}</p>}
         <button className="primary-button" type="submit">
           Начать челлендж
         </button>
       </form>
     </section>
+  )
+}
+
+function DraftGoalList({ goals, onRemove, withHours = false }) {
+  if (goals.length === 0) return null
+
+  return (
+    <div className="draft-goals">
+      {goals.map((goal) => (
+        <div key={goal.id}>
+          <span>{goal.title}</span>
+          {withHours && <small>{formatHours(goal.targetHours)}</small>}
+          <button type="button" onClick={() => onRemove(goal.id)} aria-label="Убрать цель">
+            <CloseIcon />
+          </button>
+        </div>
+      ))}
+    </div>
   )
 }
 

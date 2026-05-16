@@ -13,9 +13,10 @@ export async function getUserChallenges(userId) {
   return data
 }
 
-export async function createChallenge({ userId, title, durationDays, startDate }) {
+export async function createChallenge({ userId, title, durationDays, startDate, simpleGoals = [], timeGoals = [] }) {
   const supabase = requireSupabase()
   const endDate = addDays(startDate, durationDays - 1)
+  const totalGoals = simpleGoals.length + timeGoals.length
 
   const { data, error } = await supabase
     .from('challenges')
@@ -25,12 +26,39 @@ export async function createChallenge({ userId, title, durationDays, startDate }
       duration_days: durationDays,
       start_date: startDate,
       end_date: endDate,
-      total_goals: 0,
+      total_goals: totalGoals,
     })
     .select('*')
     .single()
 
   if (error) throw error
+
+  const goalRows = [
+    ...simpleGoals.map((goal, index) => ({
+      challenge_id: data.id,
+      user_id: userId,
+      goal_type: 'simple',
+      title: goal.title,
+      sort_order: index,
+      weight: 1,
+    })),
+    ...timeGoals.map((goal, index) => ({
+      challenge_id: data.id,
+      user_id: userId,
+      goal_type: 'time',
+      title: goal.title,
+      target_hours: goal.targetHours,
+      sort_order: simpleGoals.length + index,
+      weight: 1,
+    })),
+  ]
+
+  if (goalRows.length > 0) {
+    const { error: goalsError } = await supabase.from('goals').insert(goalRows)
+
+    if (goalsError) throw goalsError
+  }
+
   return data
 }
 
