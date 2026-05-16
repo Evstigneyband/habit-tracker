@@ -442,6 +442,8 @@ function App() {
 }
 
 function AppShell({ caption, showMenu, screen, navigate, logout, children }) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   return (
     <main className="app-shell">
       <div className="phone-shell">
@@ -454,13 +456,25 @@ function AppShell({ caption, showMenu, screen, navigate, logout, children }) {
             </div>
           </div>
           {showMenu && (
-            <button className="menu-button" type="button" onClick={() => navigate('create')} aria-label="Создать челлендж">
-              <span />
+            <button className="settings-button" type="button" onClick={() => setSettingsOpen(true)} aria-label="Настройки">
+              <SettingsIcon />
             </button>
           )}
         </header>
 
         {children}
+
+        {settingsOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
+            <section className="settings-modal" role="dialog" aria-modal="true" aria-label="Настройки" onClick={(event) => event.stopPropagation()}>
+              <button className="modal-close" type="button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть">
+                <CloseIcon />
+              </button>
+              <p className="eyebrow">Разработка</p>
+              <h2>EVSTIGNEY production</h2>
+            </section>
+          </div>
+        )}
 
         {showMenu && (
           <nav className="bottom-nav" aria-label="Основная навигация">
@@ -1251,6 +1265,15 @@ function EditIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="m14.5 5.5 4 4M5 19l4.2-.8L18 9.4 14.6 6 5.8 14.8 5 19Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9.7 4.1 10.4 2h3.2l.7 2.1 1.6.7 2-1 2.3 2.3-1 2 .7 1.6 2.1.7v3.2l-2.1.7-.7 1.6 1 2-2.3 2.3-2-1-1.6.7-.7 2.1h-3.2l-.7-2.1-1.6-.7-2 1-2.3-2.3 1-2-.7-1.6-2.1-.7v-3.2l2.1-.7.7-1.6-1-2 2.3-2.3 2 1 1.6-.7Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" />
     </svg>
   )
 }

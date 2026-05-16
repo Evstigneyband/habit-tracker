@@ -59,14 +59,13 @@
   line-height: 1.1;
 }
 
-.menu-button {
+.settings-button {
   width: 34px;
   height: 34px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  place-items: center;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   border: 1px solid #e2e8e4;
   border-radius: 11px;
   color: #111816;
@@ -74,14 +73,66 @@
   box-shadow: 0 5px 14px rgba(17, 24, 22, .08);
 }
 
-.menu-button span,
-.menu-button::before,
-.menu-button::after {
-  content: "";
-  width: 15px;
-  height: 2px;
+.settings-button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 22, .28);
+  backdrop-filter: blur(6px);
+}
+
+.settings-modal {
+  position: relative;
+  width: min(100%, 310px);
+  display: grid;
+  gap: 8px;
+  padding: 22px 18px 18px;
+  border: 1px solid #e2e8e4;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(8, 18, 14, .22);
+  text-align: center;
+}
+
+.settings-modal .eyebrow {
+  color: #249765;
+}
+
+.settings-modal h2 {
+  margin: 0;
+  color: #111816;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
   border-radius: 999px;
-  background: currentColor;
+  color: #68736f;
+  background: #f4f5f3;
+}
+
+.modal-close svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
 }
 
 .hero-card,
