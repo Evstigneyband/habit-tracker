@@ -689,38 +689,33 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
 
       <section className="surface analytics-section">
         <h2 className="section-heading">Разбор по целям</h2>
-        <div className="analytics-list">
+        <div className="analytics-goal-list">
           {analytics.goalStats.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
           {analytics.goalStats.map((goal) => (
-            <article className="analytics-row" key={goal.id}>
-              <div>
-                <strong>{goal.title}</strong>
-                <span>{goal.subtitle}</span>
+            <article className="analytics-goal-card" key={goal.id}>
+              <div className="analytics-goal-head">
+                <span>{goal.title}</span>
+                <span>{goal.completionPercent}%</span>
               </div>
-              <small>{goal.percent}%</small>
+              <div className="mini-track">
+                <div className="mini-fill" style={{ width: `${goal.completionPercent}%` }} />
+              </div>
+              <div className="state-line">{goal.meta}</div>
             </article>
           ))}
         </div>
       </section>
 
-      {analytics.timeStats.length > 0 && (
-        <section className="surface analytics-section">
-          <h2 className="section-heading">Время по целям</h2>
-          <div className="analytics-list">
-            {analytics.timeStats.map((goal) => (
-              <article className="analytics-row" key={goal.id}>
-                <div>
-                  <strong>{goal.title}</strong>
-                  <span>
-                    {formatHours(goal.totalHours)} всего. План: {formatHours(goal.targetHours)} в день.
-                  </span>
-                </div>
-                <small>{goal.completedDays} дн.</small>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="surface analytics-section">
+        <h2 className="section-heading">Что видно по данным</h2>
+        <div className="insight-list">
+          {analytics.insights.map((insight) => (
+            <div className="insight" key={insight}>
+              {insight}
+            </div>
+          ))}
+        </div>
+      </section>
     </section>
   )
 }
@@ -918,7 +913,7 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
       lowDays: 0,
       days: [],
       goalStats: [],
-      timeStats: [],
+      insights: ['Данных пока мало. Отметь хотя бы один день, и здесь появятся выводы.'],
     }
   }
 
@@ -940,6 +935,7 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
 
     return {
       day,
+      date: addDays(challenge.start_date, index),
       percent,
       future: day > currentDay,
     }
@@ -957,35 +953,39 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
   const goalStats = goals.map((goal) => {
     const goalEntries = entriesByGoal.get(goal.id) || []
     const completedDays = goalEntries.filter((entry) => entry.is_completed).length
-    const percent = Math.round((completedDays / elapsedCount) * 100)
-    const todayEntry = goalEntries.find((entry) => entry.entry_date === getTodayDate())
-    const subtitle =
+    const actualHours = goalEntries.reduce((sum, entry) => sum + Number(entry.actual_hours || 0), 0)
+    const plannedHours = goal.goal_type === 'time' ? Number(goal.target_hours || 0) * elapsedCount : 0
+    const completionPercent = Math.round((completedDays / elapsedCount) * 100)
+    const meta =
       goal.goal_type === 'time'
-        ? `Сегодня: ${formatHours(todayEntry?.actual_hours || 0)} из ${formatHours(goal.target_hours)}`
-        : todayEntry?.is_completed
-          ? 'Сегодня закрыто'
-          : 'Сегодня ждёт отметки'
+        ? `Факт ${formatHours(actualHours)} из ${formatHours(plannedHours)}`
+        : `${completedDays} из ${elapsedCount} дней`
 
     return {
       id: goal.id,
       title: goal.title,
-      percent,
-      subtitle,
+      goalType: goal.goal_type,
+      completionPercent,
+      completedDays,
+      elapsedDays: elapsedCount,
+      actualHours,
+      plannedHours,
+      meta,
     }
   })
-
-  const timeStats = goals
-    .filter((goal) => goal.goal_type === 'time')
-    .map((goal) => {
-      const goalEntries = entriesByGoal.get(goal.id) || []
-      return {
-        id: goal.id,
-        title: goal.title,
-        targetHours: Number(goal.target_hours || 0),
-        totalHours: goalEntries.reduce((sum, entry) => sum + Number(entry.actual_hours || 0), 0),
-        completedDays: goalEntries.filter((entry) => entry.is_completed).length,
-      }
-    })
+  const strongestGoal = goalStats.length
+    ? goalStats.slice().sort((a, b) => b.completionPercent - a.completionPercent)[0]
+    : null
+  const weakestGoal = goalStats.length
+    ? goalStats.slice().sort((a, b) => a.completionPercent - b.completionPercent)[0]
+    : null
+  const bestDay = elapsedDays.length
+    ? elapsedDays.slice().sort((a, b) => b.percent - a.percent)[0]
+    : null
+  const worstDay = elapsedDays.length
+    ? elapsedDays.slice().sort((a, b) => a.percent - b.percent)[0]
+    : null
+  const insights = buildInsights({ strongestGoal, weakestGoal, bestDay, worstDay })
 
   return {
     currentDay,
@@ -996,12 +996,38 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
     lowDays: elapsedDays.filter((day) => day.percent < 50).length,
     days,
     goalStats,
-    timeStats,
+    insights,
   }
+}
+
+function buildInsights({ strongestGoal, weakestGoal, bestDay, worstDay }) {
+  const insights = []
+  if (strongestGoal) {
+    insights.push(`Стабильнее всего: ${strongestGoal.title} (${strongestGoal.completionPercent}%).`)
+  }
+  if (weakestGoal) {
+    insights.push(`Больше всего проседает: ${weakestGoal.title} (${weakestGoal.completionPercent}%).`)
+  }
+  if (bestDay) {
+    insights.push(`Лучший день: ${formatDate(bestDay.date)}, ${bestDay.percent}%.`)
+  }
+  if (worstDay) {
+    insights.push(`Самый слабый день: ${formatDate(worstDay.date)}, ${worstDay.percent}%.`)
+  }
+  if (!insights.length) {
+    insights.push('Данных пока мало. Отметь хотя бы один день, и здесь появятся выводы.')
+  }
+  return insights
 }
 
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function addDays(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
 }
 
 function getChallengeDay(challenge) {
