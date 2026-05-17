@@ -7,6 +7,7 @@ const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABA
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
 const telegramAuthSecret = process.env.TELEGRAM_AUTH_SECRET || supabaseServiceRoleKey
+const technicalEmailDomain = 'telegram.habit-tracker.app'
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -15,14 +16,20 @@ export default async function handler(request, response) {
   }
 
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey || !telegramBotToken || !telegramAuthSecret) {
-    return response.status(500).json({ error: 'Telegram auth is not configured' })
+    return response.status(500).json({
+      code: 'telegram_config_missing',
+      error: 'Telegram-вход ещё не настроен на сервере. Проверь переменные Vercel.',
+    })
   }
 
   try {
     const { initData } = request.body || {}
 
     if (!initData || typeof initData !== 'string') {
-      return response.status(400).json({ error: 'Telegram auth data is missing' })
+      return response.status(400).json({
+        code: 'telegram_data_missing',
+        error: 'Telegram не передал данные входа. Закрой мини-приложение и открой его снова.',
+      })
     }
 
     const telegramUser = verifyTelegramInitData(initData, telegramBotToken)
@@ -38,11 +45,12 @@ export default async function handler(request, response) {
         autoRefreshToken: false,
       },
     })
-    const email = `telegram_${telegramUser.id}@telegram.local`
+    const email = `telegram-${telegramUser.id}@${technicalEmailDomain}`
     const password = makeTelegramPassword(telegramUser.id, telegramAuthSecret)
     const displayName = getTelegramDisplayName(telegramUser)
 
     let profile = await findTelegramProfile(serviceClient, telegramUser.id)
+    let signInEmail = email
 
     if (!profile) {
       const { data: createdUserData, error: createUserError } = await serviceClient.auth.admin.createUser({
@@ -58,7 +66,11 @@ export default async function handler(request, response) {
       })
 
       if (createUserError && !isAlreadyRegisteredError(createUserError)) {
-        throw createUserError
+        throw new TelegramAuthError(
+          'supabase_user_create_failed',
+          'Не получилось создать Telegram-профиль. Попробуй открыть мини-приложение ещё раз.',
+          createUserError,
+        )
       }
 
       const userId = createdUserData?.user?.id
@@ -73,20 +85,34 @@ export default async function handler(request, response) {
         profile = await findTelegramProfile(serviceClient, telegramUser.id)
       }
     } else {
+      signInEmail = profile.email || email
       await upsertTelegramProfile(serviceClient, {
         userId: profile.id,
-        email: profile.email || email,
+        email: signInEmail,
         telegramUser,
         displayName,
       })
     }
 
+    if (!profile) {
+      throw new TelegramAuthError(
+        'supabase_profile_missing',
+        'Не получилось подготовить Telegram-профиль. Открой мини-приложение ещё раз.',
+      )
+    }
+
     const { data: sessionData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email,
+      email: signInEmail,
       password,
     })
 
-    if (signInError) throw signInError
+    if (signInError) {
+      throw new TelegramAuthError(
+        'supabase_session_failed',
+        'Не получилось открыть Telegram-сессию. Закрой мини-приложение и открой его снова.',
+        signInError,
+      )
+    }
 
     return response.status(200).json({
       session: sessionData.session,
@@ -99,7 +125,11 @@ export default async function handler(request, response) {
     })
   } catch (error) {
     console.error('Telegram auth error:', error)
-    return response.status(401).json({ error: 'Telegram auth failed' })
+    const payload = toTelegramAuthResponse(error)
+    return response.status(payload.status).json({
+      code: payload.code,
+      error: payload.error,
+    })
   }
 }
 
@@ -107,7 +137,14 @@ function verifyTelegramInitData(initData, botToken) {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
 
-  if (!hash) throw new Error('Missing Telegram hash')
+  if (!hash) {
+    throw new TelegramAuthError(
+      'telegram_hash_missing',
+      'Telegram не передал подпись входа. Закрой мини-приложение и открой его снова.',
+      null,
+      400,
+    )
+  }
 
   params.delete('hash')
 
@@ -121,19 +158,46 @@ function verifyTelegramInitData(initData, botToken) {
   const calculatedBuffer = Buffer.from(calculatedHash, 'hex')
 
   if (hashBuffer.length !== calculatedBuffer.length || !crypto.timingSafeEqual(hashBuffer, calculatedBuffer)) {
-    throw new Error('Invalid Telegram hash')
+    throw new TelegramAuthError(
+      'telegram_hash_invalid',
+      'Не удалось проверить данные Telegram. Проверь токен бота в Vercel и открой мини-приложение снова.',
+      null,
+      401,
+    )
   }
 
   const authDate = Number(params.get('auth_date') || 0)
   const maxAgeSeconds = 60 * 60 * 24
 
   if (!authDate || Date.now() / 1000 - authDate > maxAgeSeconds) {
-    throw new Error('Telegram auth data is expired')
+    throw new TelegramAuthError(
+      'telegram_data_expired',
+      'Сессия Telegram устарела. Закрой мини-приложение и открой его снова.',
+      null,
+      401,
+    )
   }
 
-  const user = JSON.parse(params.get('user') || '{}')
+  let user
+  try {
+    user = JSON.parse(params.get('user') || '{}')
+  } catch (error) {
+    throw new TelegramAuthError(
+      'telegram_user_invalid',
+      'Telegram передал некорректные данные пользователя. Открой мини-приложение снова.',
+      error,
+      400,
+    )
+  }
 
-  if (!user.id) throw new Error('Telegram user is missing')
+  if (!user.id) {
+    throw new TelegramAuthError(
+      'telegram_user_missing',
+      'Telegram не передал пользователя. Закрой мини-приложение и открой его снова.',
+      null,
+      400,
+    )
+  }
   return user
 }
 
@@ -148,7 +212,13 @@ async function findTelegramProfile(supabase, telegramId) {
     .eq('telegram_id', telegramId)
     .maybeSingle()
 
-  if (error) throw error
+  if (error) {
+    throw new TelegramAuthError(
+      'supabase_profile_lookup_failed',
+      'Не получилось найти Telegram-профиль. Попробуй открыть мини-приложение ещё раз.',
+      error,
+    )
+  }
   return data
 }
 
@@ -167,7 +237,13 @@ async function upsertTelegramProfile(supabase, { userId, email, telegramUser, di
     .select('id, email, display_name')
     .single()
 
-  if (error) throw error
+  if (error) {
+    throw new TelegramAuthError(
+      'supabase_profile_save_failed',
+      'Не получилось сохранить Telegram-профиль. Проверь миграцию Supabase и попробуй снова.',
+      error,
+    )
+  }
   return data
 }
 
@@ -177,4 +253,30 @@ function getTelegramDisplayName(user) {
 
 function isAlreadyRegisteredError(error) {
   return String(error?.message || '').toLowerCase().includes('already')
+}
+
+class TelegramAuthError extends Error {
+  constructor(code, message, cause = null, status = 500) {
+    super(message)
+    this.name = 'TelegramAuthError'
+    this.code = code
+    this.status = status
+    this.cause = cause
+  }
+}
+
+function toTelegramAuthResponse(error) {
+  if (error instanceof TelegramAuthError) {
+    return {
+      status: error.status || 500,
+      code: error.code,
+      error: error.message,
+    }
+  }
+
+  return {
+    status: 500,
+    code: 'telegram_auth_failed',
+    error: 'Не получилось войти через Telegram. Закрой мини-приложение и открой его снова.',
+  }
 }

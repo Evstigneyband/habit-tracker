@@ -1591,6 +1591,15 @@ function formatAppError(error) {
     return 'Email ещё не подтверждён. Открой письмо на почте и перейди по ссылке подтверждения.'
   }
 
+  if (
+    rawMessage.includes('Telegram') ||
+    rawMessage.includes('мини-приложение') ||
+    rawMessage.includes('Vercel') ||
+    rawMessage.includes('Supabase')
+  ) {
+    return rawMessage
+  }
+
   if (message.includes('telegram auth')) {
     return 'Не получилось войти через Telegram. Закрой мини-приложение и открой его снова.'
   }
