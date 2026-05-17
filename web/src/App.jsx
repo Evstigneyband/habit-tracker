@@ -1038,6 +1038,9 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
               <div className="analytics-goal-copy">
                 <strong>{goal.title}</strong>
                 <span>{goal.meta}</span>
+                <div className="mini-track">
+                  <div className="mini-fill" style={{ width: `${goal.completionPercent}%` }} />
+                </div>
               </div>
               <span className="analytics-goal-percent">{goal.completionPercent}%</span>
             </article>

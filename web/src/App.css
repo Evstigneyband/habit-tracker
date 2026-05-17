@@ -291,7 +291,8 @@
 }
 
 .surface,
-.goal-list {
+.goal-list,
+.analytics-goal-list {
   border: 1px solid #e2e8e4;
   border-radius: 12px;
   background: #fff;
@@ -843,10 +844,14 @@
   overflow: hidden;
 }
 
+.analytics-goal-row {
+  min-height: 62px;
+}
+
 .analytics-goal-copy {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 5px;
 }
 
 .analytics-goal-copy strong {
@@ -876,6 +881,19 @@
   font-weight: 900;
   line-height: 1;
   text-align: center;
+}
+
+.mini-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef3ef;
+}
+
+.mini-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #249765, #60a5fa);
 }
 
 .state-line,
