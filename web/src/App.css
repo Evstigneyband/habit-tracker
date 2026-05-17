@@ -6,6 +6,12 @@
   background: #fff;
 }
 
+.app-shell.telegram-mode {
+  min-height: var(--tg-viewport-height, 100svh);
+  padding-top: max(18px, env(safe-area-inset-top));
+  background: var(--tg-bg-color, #fff);
+}
+
 .phone-shell,
 .screen {
   display: grid;
@@ -113,6 +119,29 @@
   font-size: 21px;
   font-weight: 900;
   line-height: 1.1;
+}
+
+.platform-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  color: #68736f;
+  background: #f4f7f4;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.platform-state strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #111816;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-close {

@@ -15,6 +15,7 @@ import {
 import './App.css'
 
 function App() {
+  const telegramContext = useMemo(() => getTelegramContext(), [])
   const [isAuthed, setIsAuthed] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [userId, setUserId] = useState('')
@@ -35,6 +36,7 @@ function App() {
   const [editingChallenge, setEditingChallenge] = useState(null)
 
   useEffect(() => {
+    const cleanupTelegram = setupTelegramWebApp(telegramContext)
     let isMounted = true
 
     getCurrentSession()
@@ -58,8 +60,9 @@ function App() {
 
     return () => {
       isMounted = false
+      cleanupTelegram()
     }
-  }, [])
+  }, [telegramContext])
 
   useEffect(() => {
     if (!activeChallengeId) {
@@ -457,7 +460,14 @@ function App() {
 
   if (isCheckingSession) {
     return (
-      <AppShell caption="Личный трекер прогресса" showMenu={false} screen={screen} navigate={navigate} logout={logout}>
+      <AppShell
+        caption="Личный трекер прогресса"
+        showMenu={false}
+        screen={screen}
+        navigate={navigate}
+        logout={logout}
+        telegramContext={telegramContext}
+      >
         <section className="screen">
           <div className="hero-card">
             <p className="eyebrow">Подключаемся</p>
@@ -477,6 +487,7 @@ function App() {
         screen={screen}
         navigate={navigate}
         logout={logout}
+        telegramContext={telegramContext}
       >
         <AuthScreen authMode={authMode} setAuthMode={setAuthMode} onSubmit={login} authError={authError} />
       </AppShell>
@@ -490,6 +501,7 @@ function App() {
       screen={screen}
       navigate={navigate}
       logout={logout}
+      telegramContext={telegramContext}
     >
       {screen === 'today' && (
         <TodayScreen
@@ -536,11 +548,11 @@ function App() {
   )
 }
 
-function AppShell({ caption, showMenu, screen, navigate, logout, children }) {
+function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext, children }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${telegramContext.isTelegram ? 'telegram-mode' : ''}`}>
       <div className="phone-shell">
         <header className="topbar">
           <div className="brand">
@@ -567,6 +579,16 @@ function AppShell({ caption, showMenu, screen, navigate, logout, children }) {
               </button>
               <p className="eyebrow">Разработка</p>
               <h2>EVSTIGNEY production</h2>
+              <div className="platform-state">
+                <span>Режим</span>
+                <strong>{telegramContext.isTelegram ? 'Telegram Mini App' : 'Web'}</strong>
+              </div>
+              {telegramContext.userName && (
+                <div className="platform-state">
+                  <span>Telegram</span>
+                  <strong>{telegramContext.userName}</strong>
+                </div>
+              )}
             </section>
           </div>
         )}
@@ -1463,6 +1485,65 @@ function CloseIcon() {
       <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeLinecap="round" />
     </svg>
   )
+}
+
+function getTelegramContext() {
+  const webApp = getTelegramWebApp()
+  const user = webApp?.initDataUnsafe?.user
+  const userName = user
+    ? user.username
+      ? `@${user.username}`
+      : [user.first_name, user.last_name].filter(Boolean).join(' ')
+    : ''
+
+  return {
+    isTelegram: Boolean(webApp),
+    userName,
+    webApp,
+  }
+}
+
+function getTelegramWebApp() {
+  if (typeof window === 'undefined') return null
+  return window.Telegram?.WebApp || null
+}
+
+function setupTelegramWebApp(telegramContext) {
+  const webApp = telegramContext.webApp
+  const root = document.documentElement
+  const body = document.body
+
+  if (!telegramContext.isTelegram || !webApp) {
+    body.classList.remove('telegram-webapp')
+    root.style.removeProperty('--tg-viewport-height')
+    root.style.removeProperty('--tg-bg-color')
+    return () => {}
+  }
+
+  body.classList.add('telegram-webapp')
+
+  const syncViewport = () => {
+    const height = webApp.viewportStableHeight || webApp.viewportHeight
+    if (height) root.style.setProperty('--tg-viewport-height', `${height}px`)
+  }
+
+  const syncTheme = () => {
+    const background = webApp.themeParams?.bg_color
+    if (background) root.style.setProperty('--tg-bg-color', background)
+  }
+
+  syncViewport()
+  syncTheme()
+  webApp.ready()
+  webApp.expand()
+  webApp.disableVerticalSwipes?.()
+  webApp.onEvent?.('viewportChanged', syncViewport)
+  webApp.onEvent?.('themeChanged', syncTheme)
+
+  return () => {
+    webApp.offEvent?.('viewportChanged', syncViewport)
+    webApp.offEvent?.('themeChanged', syncTheme)
+  }
 }
 
 function formatAppError(error) {
