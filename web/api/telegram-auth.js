@@ -213,9 +213,9 @@ async function findTelegramProfile(supabase, telegramId) {
     .maybeSingle()
 
   if (error) {
-    throw new TelegramAuthError(
+    throw makeSupabaseTelegramError(
       'supabase_profile_lookup_failed',
-      'Не получилось найти Telegram-профиль. Попробуй открыть мини-приложение ещё раз.',
+      'Не получилось найти Telegram-профиль.',
       error,
     )
   }
@@ -238,9 +238,9 @@ async function upsertTelegramProfile(supabase, { userId, email, telegramUser, di
     .single()
 
   if (error) {
-    throw new TelegramAuthError(
+    throw makeSupabaseTelegramError(
       'supabase_profile_save_failed',
-      'Не получилось сохранить Telegram-профиль. Проверь миграцию Supabase и попробуй снова.',
+      'Не получилось сохранить Telegram-профиль.',
       error,
     )
   }
@@ -253,6 +253,42 @@ function getTelegramDisplayName(user) {
 
 function isAlreadyRegisteredError(error) {
   return String(error?.message || '').toLowerCase().includes('already')
+}
+
+function makeSupabaseTelegramError(code, prefix, error) {
+  const causeMessage = String(error?.message || '')
+  const causeDetails = [error?.code, error?.details, error?.hint].filter(Boolean).join(' ')
+  const cause = `${causeMessage} ${causeDetails}`.toLowerCase()
+
+  if (cause.includes('telegram_id') || cause.includes('auth_provider') || cause.includes('telegram_username')) {
+    return new TelegramAuthError(
+      code,
+      `${prefix} В Supabase не применена Telegram-миграция. Выполни SQL с колонками telegram_id, telegram_username и auth_provider.`,
+      error,
+    )
+  }
+
+  if (cause.includes('permission denied') || error?.code === '42501') {
+    return new TelegramAuthError(
+      code,
+      `${prefix} У серверной функции нет прав к таблице profiles. Проверь, что SUPABASE_SERVICE_ROLE_KEY в Vercel — именно service_role secret, и сделай Redeploy.`,
+      error,
+    )
+  }
+
+  if (cause.includes('relation') || cause.includes('does not exist') || cause.includes('schema cache')) {
+    return new TelegramAuthError(
+      code,
+      `${prefix} Supabase не видит нужную таблицу или новые поля. Проверь SQL-миграцию и обнови schema cache, затем сделай Redeploy.`,
+      error,
+    )
+  }
+
+  return new TelegramAuthError(
+    code,
+    `${prefix} Supabase ответил: ${causeMessage || 'неизвестная ошибка'}`,
+    error,
+  )
 }
 
 class TelegramAuthError extends Error {
