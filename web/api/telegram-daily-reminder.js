@@ -15,8 +15,16 @@ export default async function handler(request, response) {
     return response.status(405).json({ error: 'Method not allowed' })
   }
 
-  if (cronSecret && request.headers.authorization !== `Bearer ${cronSecret}`) {
+  const url = new URL(request.url, 'https://habit-tracker.local')
+  const isManualTest = ['1', 'true', 'yes'].includes(String(url.searchParams.get('test') || '').toLowerCase())
+  const isAuthorized = !cronSecret || request.headers.authorization === `Bearer ${cronSecret}`
+
+  if (cronSecret && !isAuthorized) {
     return response.status(401).json({ error: 'Unauthorized' })
+  }
+
+  if (isManualTest && !cronSecret) {
+    return response.status(401).json({ error: 'Manual test requires CRON_SECRET' })
   }
 
   if (!supabaseUrl || !supabaseServiceRoleKey || !telegramBotToken) {
@@ -37,11 +45,12 @@ export default async function handler(request, response) {
       sent: 0,
       skipped: 0,
       errors: 0,
+      test: isManualTest,
     }
 
     for (const profile of profiles) {
       try {
-        const reminder = await buildReminder(supabase, profile)
+        const reminder = await buildReminder(supabase, profile, { force: isManualTest })
 
         if (!reminder) {
           result.skipped += 1
@@ -75,20 +84,21 @@ async function getTelegramProfiles(supabase) {
   return data || []
 }
 
-async function buildReminder(supabase, profile) {
+async function buildReminder(supabase, profile, { force = false } = {}) {
   const timezone = profile.timezone || 'Europe/Podgorica'
   const now = new Date()
   const today = getDateInTimezone(now, timezone)
   const currentHour = getHourInTimezone(now, timezone)
 
-  if (currentHour !== targetHour) return null
-  if (profile.last_seen_at && getDateInTimezone(new Date(profile.last_seen_at), timezone) === today) return null
+  if (!force && currentHour !== targetHour) return null
+  if (!force && profile.last_seen_at && getDateInTimezone(new Date(profile.last_seen_at), timezone) === today) return null
 
   const challenge = await getReminderChallenge(supabase, profile)
   if (!challenge) return null
 
   const dayNumber = getChallengeDay(today, challenge.start_date)
-  if (dayNumber <= 1 || dayNumber > Number(challenge.duration_days || 0)) return null
+  if (dayNumber < 1 || dayNumber > Number(challenge.duration_days || 0)) return null
+  if (!force && dayNumber <= 1) return null
 
   const wasSent = await wasReminderSent(supabase, profile.id, today)
   if (wasSent) return null
