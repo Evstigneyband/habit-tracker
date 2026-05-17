@@ -206,16 +206,24 @@ function App() {
   }
 
   async function selectChallenge(challengeId) {
-    setActiveChallengeId(challengeId)
-    setSimpleGoals([])
-    setTimeGoals([])
-    setRawGoals([])
-    setDailyEntries([])
+    const isSameChallenge = challengeId === activeChallengeId
+
+    if (!isSameChallenge) {
+      setActiveChallengeId(challengeId)
+      setSimpleGoals([])
+      setTimeGoals([])
+      setRawGoals([])
+      setDailyEntries([])
+    }
+
     setScreen('today')
     setAppError('')
 
     try {
       await setLastActiveChallenge(userId, challengeId)
+      if (isSameChallenge) {
+        await loadGoals(challengeId)
+      }
     } catch (error) {
       setAppError(error.message)
     }
