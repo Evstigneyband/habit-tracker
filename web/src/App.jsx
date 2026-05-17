@@ -1009,35 +1009,37 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
         <Metric value={String(analytics.lowDays)} label="Дней ниже 50%" />
       </div>
 
-      <section className="surface">
-        <h2 className="section-heading">Календарь</h2>
-        <div className="day-grid">
-          {analytics.days.map((day) => (
-            <div
-              className={`day-cell ${day.future ? 'future' : day.percent === 100 ? 'good' : day.percent >= 50 ? 'mid' : 'low'}`}
-              key={day.day}
-            >
-              <span>{day.day}</span>
-              <small>{day.future ? '' : `${day.percent}%`}</small>
-            </div>
-          ))}
+      <section className="goal-section">
+        <h2>Календарь</h2>
+        <div className="surface calendar-surface">
+          <div className="day-grid">
+            {analytics.days.map((day) => (
+              <div
+                className={`day-cell ${day.future ? 'future' : day.percent === 100 ? 'good' : day.percent >= 50 ? 'mid' : 'low'}`}
+                key={day.day}
+              >
+                <span>{day.day}</span>
+                <small>{day.future ? '' : `${day.percent}%`}</small>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="surface analytics-section">
-        <h2 className="section-heading">Разбор по целям</h2>
+      <section className="goal-section">
+        <h2>Разбор по целям</h2>
         <div className="analytics-goal-list">
           {analytics.goalStats.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
           {analytics.goalStats.map((goal) => (
-            <article className="analytics-goal-card" key={goal.id}>
-              <div className="analytics-goal-head">
-                <span>{goal.title}</span>
-                <span>{goal.completionPercent}%</span>
+            <article className="goal-row analytics-goal-row" key={goal.id}>
+              <span className="goal-icon">
+                {goal.goalType === 'time' ? <ClockIcon /> : <HeartIcon />}
+              </span>
+              <div className="analytics-goal-copy">
+                <strong>{goal.title}</strong>
+                <span>{goal.meta}</span>
               </div>
-              <div className="mini-track">
-                <div className="mini-fill" style={{ width: `${goal.completionPercent}%` }} />
-              </div>
-              <div className="state-line">{goal.meta}</div>
+              <span className="analytics-goal-percent">{goal.completionPercent}%</span>
             </article>
           ))}
         </div>
