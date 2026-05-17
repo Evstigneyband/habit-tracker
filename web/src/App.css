@@ -9,7 +9,7 @@
 .app-shell.telegram-mode {
   min-height: var(--tg-viewport-height, 100svh);
   padding-top: max(18px, env(safe-area-inset-top));
-  background: var(--tg-bg-color, #fff);
+  background: #fff;
 }
 
 .phone-shell,

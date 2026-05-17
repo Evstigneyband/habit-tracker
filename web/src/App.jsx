@@ -1489,6 +1489,7 @@ function CloseIcon() {
 
 function getTelegramContext() {
   const webApp = getTelegramWebApp()
+  const isTelegram = Boolean(webApp?.initData)
   const user = webApp?.initDataUnsafe?.user
   const userName = user
     ? user.username
@@ -1497,9 +1498,9 @@ function getTelegramContext() {
     : ''
 
   return {
-    isTelegram: Boolean(webApp),
+    isTelegram,
     userName,
-    webApp,
+    webApp: isTelegram ? webApp : null,
   }
 }
 
@@ -1516,7 +1517,6 @@ function setupTelegramWebApp(telegramContext) {
   if (!telegramContext.isTelegram || !webApp) {
     body.classList.remove('telegram-webapp')
     root.style.removeProperty('--tg-viewport-height')
-    root.style.removeProperty('--tg-bg-color')
     return () => {}
   }
 
@@ -1527,22 +1527,14 @@ function setupTelegramWebApp(telegramContext) {
     if (height) root.style.setProperty('--tg-viewport-height', `${height}px`)
   }
 
-  const syncTheme = () => {
-    const background = webApp.themeParams?.bg_color
-    if (background) root.style.setProperty('--tg-bg-color', background)
-  }
-
   syncViewport()
-  syncTheme()
   webApp.ready()
   webApp.expand()
   webApp.disableVerticalSwipes?.()
   webApp.onEvent?.('viewportChanged', syncViewport)
-  webApp.onEvent?.('themeChanged', syncTheme)
 
   return () => {
     webApp.offEvent?.('viewportChanged', syncViewport)
-    webApp.offEvent?.('themeChanged', syncTheme)
   }
 }
 
