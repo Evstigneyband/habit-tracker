@@ -50,6 +50,17 @@
   background: #fff;
 }
 
+.brand-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #e2e8e4;
+  border-radius: 11px;
+  object-fit: cover;
+  background: #f5f7f5;
+  box-shadow: 0 5px 14px rgba(17, 24, 22, .08);
+}
+
 .brand h1 {
   margin: 0;
   color: #111816;

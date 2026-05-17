@@ -605,7 +605,7 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
       <div className="phone-shell">
         <header className="topbar">
           <div className="brand">
-            <div className="brand-mark" aria-hidden="true" />
+            <BrandMark telegramContext={telegramContext} />
             <div>
               <h1>Твой челлендж</h1>
               <p>{caption}</p>
@@ -661,6 +661,26 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
       </div>
     </main>
   )
+}
+
+function BrandMark({ telegramContext }) {
+  const [avatarFailed, setAvatarFailed] = useState(false)
+  const avatarUrl = telegramContext.isTelegram && !avatarFailed ? telegramContext.userPhotoUrl : ''
+
+  if (avatarUrl) {
+    return (
+      <img
+        className="brand-avatar"
+        src={avatarUrl}
+        alt=""
+        aria-hidden="true"
+        referrerPolicy="no-referrer"
+        onError={() => setAvatarFailed(true)}
+      />
+    )
+  }
+
+  return <div className="brand-mark" aria-hidden="true" />
 }
 
 function AuthScreen({ authMode, setAuthMode, onSubmit, authError }) {
@@ -1550,6 +1570,7 @@ function getTelegramContext() {
     isTelegram,
     initData: isTelegram ? webApp.initData : '',
     userName,
+    userPhotoUrl: isTelegram ? user?.photo_url || '' : '',
     webApp: isTelegram ? webApp : null,
   }
 }
