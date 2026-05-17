@@ -17,7 +17,7 @@ export async function getUserProfile(userId) {
   const supabase = requireSupabase()
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, last_active_challenge_id')
+    .select('id, email, display_name, auth_provider, telegram_username, last_active_challenge_id')
     .eq('id', userId)
     .single()
 

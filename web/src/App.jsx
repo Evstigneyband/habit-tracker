@@ -47,7 +47,7 @@ function App() {
           setUserId(session.user.id)
           setUserEmail(session.user.email || '')
           setIsAuthed(true)
-          loadChallenges(session.user.id)
+          await loadChallenges(session.user.id, session.user.email || '')
           navigate('today')
           return
         }
@@ -59,7 +59,7 @@ function App() {
           setUserId(telegramUser.id)
           setUserEmail(telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           setIsAuthed(true)
-          await loadChallenges(telegramUser.id)
+          await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           navigate('today')
         }
       })
@@ -203,7 +203,7 @@ function App() {
     navigate('auth')
   }
 
-  async function loadChallenges(nextUserId) {
+  async function loadChallenges(nextUserId, fallbackCaption = '') {
     setIsLoadingChallenges(true)
     setAppError('')
 
@@ -212,6 +212,7 @@ function App() {
         getUserChallenges(nextUserId),
         getUserProfile(nextUserId),
       ])
+      setUserEmail(getProfileCaption(profile, fallbackCaption))
       setChallenges(nextChallenges)
       if (nextChallenges.length === 0) {
         setSimpleGoals([])
@@ -1515,6 +1516,18 @@ function getTelegramContext() {
     userName,
     webApp: isTelegram ? webApp : null,
   }
+}
+
+function getProfileCaption(profile, fallbackCaption = '') {
+  if (!profile) return fallbackCaption
+
+  if (profile.auth_provider === 'telegram') {
+    if (profile.display_name) return profile.display_name
+    if (profile.telegram_username) return `@${profile.telegram_username}`
+    return fallbackCaption || 'Telegram'
+  }
+
+  return profile.email || fallbackCaption
 }
 
 function getTelegramWebApp() {
