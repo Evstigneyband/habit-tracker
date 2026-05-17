@@ -50,7 +50,7 @@ function App() {
         }
       })
       .catch((error) => {
-        if (isMounted) setAuthError(error.message)
+        if (isMounted) setAuthError(formatAppError(error))
       })
       .finally(() => {
         if (isMounted) setIsCheckingSession(false)
@@ -144,8 +144,14 @@ function App() {
 
       const user = data.user || data.session?.user
 
+      if (authMode === 'register' && !data.session) {
+        setAuthMode('login')
+        setAuthError('Регистрация почти готова. Открой письмо на почте, подтверди email и затем войди в приложение.')
+        return
+      }
+
       if (!user) {
-        setAuthError('Проверь почту и подтверди регистрацию, потом войди с этим email и паролем.')
+        setAuthError('Открой письмо на почте, подтверди email и затем войди в приложение.')
         return
       }
 
@@ -155,7 +161,7 @@ function App() {
       await loadChallenges(user.id)
       navigate('today')
     } catch (error) {
-      setAuthError(error.message)
+      setAuthError(formatAppError(error))
     }
   }
 
@@ -199,7 +205,7 @@ function App() {
         return nextChallenges[0]?.id || ''
       })
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     } finally {
       setIsLoadingChallenges(false)
     }
@@ -225,7 +231,7 @@ function App() {
         await loadGoals(challengeId)
       }
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     }
   }
 
@@ -252,7 +258,7 @@ function App() {
         if (!nextActiveId) navigate('challenges')
       }
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     }
   }
 
@@ -288,7 +294,7 @@ function App() {
           })),
       )
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     } finally {
       if (!silent) setIsLoadingGoals(false)
     }
@@ -336,7 +342,7 @@ function App() {
       await setLastActiveChallenge(userId, createdChallenge.id)
       navigate('today')
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     }
   }
 
@@ -366,7 +372,7 @@ function App() {
       setScreen('create')
       requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
     }
   }
 
@@ -391,7 +397,7 @@ function App() {
       })
       upsertEntryState(savedEntry)
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
       setSimpleGoals((goals) =>
         goals.map((item) => (item.id === goalId ? { ...item, done: goal.done } : item)),
       )
@@ -419,7 +425,7 @@ function App() {
       })
       upsertEntryState(savedEntry)
     } catch (error) {
-      setAppError(error.message)
+      setAppError(formatAppError(error))
       setTimeGoals((goals) =>
         goals.map((item) => (item.id === goalId ? { ...item, actual: goal.actual } : item)),
       )
@@ -441,7 +447,7 @@ function App() {
           <div className="hero-card">
             <p className="eyebrow">Подключаемся</p>
             <h2>Проверяю вход.</h2>
-            <p>Сейчас приложение смотрит, есть ли сохранённая сессия Supabase.</p>
+            <p>Сейчас приложение проверяет, есть ли сохранённый вход.</p>
           </div>
         </section>
       </AppShell>
@@ -630,7 +636,7 @@ function TodayScreen({ progress, challenge, appError, isLoadingGoals, simpleGoal
         <div className="hero-card">
           <p className="eyebrow">Первый челлендж</p>
           <h2>Создай старт.</h2>
-          <p>Пока в Supabase нет ни одного челленджа для этого аккаунта. Нажми меню сверху или вкладку “Все челленджи”, чтобы создать первый.</p>
+          <p>Пока здесь нет ни одного челленджа. Открой вкладку “Все челленджи” и создай первый.</p>
         </div>
         {appError && <p className="form-error">{appError}</p>}
       </section>
@@ -1442,6 +1448,28 @@ function CloseIcon() {
       <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeLinecap="round" />
     </svg>
   )
+}
+
+function formatAppError(error) {
+  const message = String(error?.message || error || '').toLowerCase()
+
+  if (message.includes('permission denied')) {
+    return 'Доступ ещё не готов. Если ты только что зарегистрировался, подтверди email по ссылке из письма и войди снова.'
+  }
+
+  if (message.includes('invalid login credentials')) {
+    return 'Неверный email или пароль. Проверь данные и попробуй ещё раз.'
+  }
+
+  if (message.includes('email not confirmed')) {
+    return 'Email ещё не подтверждён. Открой письмо на почте и перейди по ссылке подтверждения.'
+  }
+
+  if (message.includes('failed to fetch') || message.includes('network')) {
+    return 'Не получилось подключиться. Проверь интернет и попробуй ещё раз.'
+  }
+
+  return 'Что-то пошло не так. Попробуй ещё раз.'
 }
 
 export default App
