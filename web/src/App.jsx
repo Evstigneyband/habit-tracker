@@ -137,16 +137,15 @@ function App() {
     const total = simpleGoals.length + timeGoals.length
     const done = simpleDone + timeDone
     const todayPercent = total ? Math.round((done / total) * 100) : 0
-    const challengeDay = activeChallenge ? getChallengeDay(activeChallenge) : 1
-    const durationDays = activeChallenge?.duration_days || 1
+    const analytics = buildAnalytics(activeChallenge, rawGoals, dailyEntries, total)
 
     return {
       done,
       total,
       todayPercent,
-      overallPercent: Math.round(((challengeDay - 1 + todayPercent / 100) / durationDays) * 100),
+      overallPercent: analytics.overallPercent,
     }
-  }, [activeChallenge, simpleGoals, timeGoals])
+  }, [activeChallenge, dailyEntries, rawGoals, simpleGoals, timeGoals])
 
   function navigate(nextScreen) {
     if (nextScreen !== 'create') setEditingChallenge(null)
@@ -789,7 +788,7 @@ function ProgressCard({ progress, challenge }) {
 
       <div className="progress-stack">
         <ProgressLine label="Сегодня" value={progress.todayPercent} />
-        <ProgressLine label="Весь челлендж" value={progress.overallPercent} overall />
+        <ProgressLine label="Общий прогресс" value={progress.overallPercent} overall />
       </div>
 
       <p className="progress-caption">
