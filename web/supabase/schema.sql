@@ -81,11 +81,15 @@ alter table public.challenges enable row level security;
 alter table public.goals enable row level security;
 alter table public.daily_entries enable row level security;
 
-grant usage on schema public to authenticated;
+grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.challenges to authenticated;
 grant select, insert, update, delete on public.goals to authenticated;
 grant select, insert, update, delete on public.daily_entries to authenticated;
+grant select, insert, update, delete on public.profiles to service_role;
+grant select, insert, update, delete on public.challenges to service_role;
+grant select, insert, update, delete on public.goals to service_role;
+grant select, insert, update, delete on public.daily_entries to service_role;
 
 do $$
 begin
