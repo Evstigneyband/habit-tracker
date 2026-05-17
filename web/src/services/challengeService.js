@@ -87,6 +87,19 @@ export async function setLastActiveChallenge(userId, challengeId) {
   if (error) throw error
 }
 
+export async function touchUserLastSeen(userId) {
+  const supabase = requireSupabase()
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  if (error) throw error
+}
+
 export async function deleteChallenge({ userId, challengeId }) {
   const supabase = requireSupabase()
   const { error } = await supabase

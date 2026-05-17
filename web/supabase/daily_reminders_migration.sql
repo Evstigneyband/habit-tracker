@@ -1,6 +1,3 @@
-alter table public.profiles add column if not exists auth_provider text not null default 'email';
-alter table public.profiles add column if not exists telegram_id bigint unique;
-alter table public.profiles add column if not exists telegram_username text;
 alter table public.profiles add column if not exists last_seen_at timestamptz;
 
 create table if not exists public.telegram_reminders (
@@ -23,3 +20,14 @@ grant select, insert, update, delete on public.challenges to service_role;
 grant select, insert, update, delete on public.goals to service_role;
 grant select, insert, update, delete on public.daily_entries to service_role;
 grant select, insert, update, delete on public.telegram_reminders to service_role;
+
+grant select, insert, update, delete on public.telegram_reminders to authenticated;
+
+do $$
+begin
+  create policy "Users can read own reminders"
+    on public.telegram_reminders for select
+    using (auth.uid() = user_id);
+exception
+  when duplicate_object then null;
+end $$;

@@ -11,6 +11,7 @@ import {
   restartChallenge,
   saveDailyEntry,
   setLastActiveChallenge,
+  touchUserLastSeen,
 } from './services/challengeService'
 import './App.css'
 
@@ -56,6 +57,7 @@ function App() {
           setUserId(session.user.id)
           setUserEmail(session.user.email || '')
           setIsAuthed(true)
+          await markUserSeen(session.user.id)
           const nextChallenges = await loadChallenges(session.user.id, session.user.email || '')
           routeAfterLoad(nextChallenges)
           return
@@ -68,6 +70,7 @@ function App() {
           setUserId(telegramUser.id)
           setUserEmail(telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           setIsAuthed(true)
+          await markUserSeen(telegramUser.id)
           const nextChallenges = await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           routeAfterLoad(nextChallenges)
         }
@@ -188,6 +191,7 @@ function App() {
       setUserEmail(user.email || email)
       setUserId(user.id)
       setIsAuthed(true)
+      await markUserSeen(user.id)
       const nextChallenges = await loadChallenges(user.id, user.email || email)
       navigateAfterChallengesLoad(nextChallenges)
     } catch (error) {
@@ -243,6 +247,14 @@ function App() {
       return []
     } finally {
       setIsLoadingChallenges(false)
+    }
+  }
+
+  async function markUserSeen(nextUserId) {
+    try {
+      await touchUserLastSeen(nextUserId)
+    } catch (error) {
+      console.warn('Could not update last seen timestamp:', error)
     }
   }
 

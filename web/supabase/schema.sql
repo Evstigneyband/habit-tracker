@@ -8,6 +8,7 @@ create table if not exists public.profiles (
   telegram_id bigint unique,
   telegram_username text,
   timezone text not null default 'Europe/Podgorica',
+  last_seen_at timestamptz,
   last_active_challenge_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -16,6 +17,7 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists auth_provider text not null default 'email';
 alter table public.profiles add column if not exists telegram_id bigint unique;
 alter table public.profiles add column if not exists telegram_username text;
+alter table public.profiles add column if not exists last_seen_at timestamptz;
 
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),
@@ -76,20 +78,35 @@ create table if not exists public.daily_entries (
   unique (goal_id, entry_date)
 );
 
+create table if not exists public.telegram_reminders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  challenge_id uuid not null references public.challenges(id) on delete cascade,
+  telegram_id bigint not null,
+  reminder_type text not null default 'daily_open_challenge',
+  reminder_date date not null,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (user_id, reminder_type, reminder_date)
+);
+
 alter table public.profiles enable row level security;
 alter table public.challenges enable row level security;
 alter table public.goals enable row level security;
 alter table public.daily_entries enable row level security;
+alter table public.telegram_reminders enable row level security;
 
 grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.challenges to authenticated;
 grant select, insert, update, delete on public.goals to authenticated;
 grant select, insert, update, delete on public.daily_entries to authenticated;
+grant select, insert, update, delete on public.telegram_reminders to authenticated;
 grant select, insert, update, delete on public.profiles to service_role;
 grant select, insert, update, delete on public.challenges to service_role;
 grant select, insert, update, delete on public.goals to service_role;
 grant select, insert, update, delete on public.daily_entries to service_role;
+grant select, insert, update, delete on public.telegram_reminders to service_role;
 
 do $$
 begin
@@ -124,6 +141,10 @@ create policy "Users can manage own entries"
   on public.daily_entries for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+create policy "Users can read own reminders"
+  on public.telegram_reminders for select
+  using (auth.uid() = user_id);
 
 create or replace function public.handle_new_user()
 returns trigger
