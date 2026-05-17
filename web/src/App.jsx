@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getCurrentSession, signInWithEmail, signOut, signUpWithEmail } from './services/authService'
+import { getCurrentSession, signInWithEmail, signInWithTelegram, signOut, signUpWithEmail } from './services/authService'
 import { supabase } from './lib/supabaseClient'
 import {
   createChallenge,
@@ -40,7 +40,7 @@ function App() {
     let isMounted = true
 
     getCurrentSession()
-      .then((session) => {
+      .then(async (session) => {
         if (!isMounted) return
 
         if (session?.user) {
@@ -48,6 +48,18 @@ function App() {
           setUserEmail(session.user.email || '')
           setIsAuthed(true)
           loadChallenges(session.user.id)
+          navigate('today')
+          return
+        }
+
+        if (telegramContext.isTelegram && telegramContext.initData) {
+          const telegramPayload = await signInWithTelegram(telegramContext.initData)
+          const telegramUser = telegramPayload.session.user
+
+          setUserId(telegramUser.id)
+          setUserEmail(telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
+          setIsAuthed(true)
+          await loadChallenges(telegramUser.id)
           navigate('today')
         }
       })
@@ -1499,6 +1511,7 @@ function getTelegramContext() {
 
   return {
     isTelegram,
+    initData: isTelegram ? webApp.initData : '',
     userName,
     webApp: isTelegram ? webApp : null,
   }
@@ -1576,6 +1589,10 @@ function formatAppError(error) {
 
   if (message.includes('email not confirmed')) {
     return 'Email ещё не подтверждён. Открой письмо на почте и перейди по ссылке подтверждения.'
+  }
+
+  if (message.includes('telegram auth')) {
+    return 'Не получилось войти через Telegram. Закрой мини-приложение и открой его снова.'
   }
 
   if (message.includes('failed to fetch') || message.includes('network')) {

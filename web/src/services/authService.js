@@ -33,6 +33,30 @@ export async function signUpWithEmail(email, password) {
   return data
 }
 
+export async function signInWithTelegram(initData) {
+  const supabase = requireSupabase()
+  const response = await fetch('/api/telegram-auth', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ initData }),
+  })
+  const payload = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Telegram auth failed')
+  }
+
+  const { error } = await supabase.auth.setSession({
+    access_token: payload.session.access_token,
+    refresh_token: payload.session.refresh_token,
+  })
+
+  if (error) throw error
+  return payload
+}
+
 export async function signOut() {
   const supabase = requireSupabase()
   const { error } = await supabase.auth.signOut()

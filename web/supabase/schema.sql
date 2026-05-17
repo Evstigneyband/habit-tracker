@@ -4,11 +4,18 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   display_name text,
+  auth_provider text not null default 'email' check (auth_provider in ('email', 'telegram')),
+  telegram_id bigint unique,
+  telegram_username text,
   timezone text not null default 'Europe/Podgorica',
   last_active_challenge_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists auth_provider text not null default 'email';
+alter table public.profiles add column if not exists telegram_id bigint unique;
+alter table public.profiles add column if not exists telegram_username text;
 
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),
