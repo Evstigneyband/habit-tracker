@@ -144,6 +144,12 @@ function App() {
 
       const user = data.user || data.session?.user
 
+      if (authMode === 'register' && data.user?.identities?.length === 0) {
+        setAuthMode('login')
+        setAuthError('Этот email уже зарегистрирован. Перейди во “Вход” и используй свой пароль.')
+        return
+      }
+
       if (authMode === 'register' && !data.session) {
         setAuthMode('login')
         setAuthError('Регистрация почти готова. Открой письмо на почте, подтверди email и затем войди в приложение.')
@@ -161,6 +167,7 @@ function App() {
       await loadChallenges(user.id)
       navigate('today')
     } catch (error) {
+      console.error('Auth error:', error)
       setAuthError(formatAppError(error))
     }
   }
@@ -205,6 +212,7 @@ function App() {
         return nextChallenges[0]?.id || ''
       })
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     } finally {
       setIsLoadingChallenges(false)
@@ -231,6 +239,7 @@ function App() {
         await loadGoals(challengeId)
       }
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     }
   }
@@ -258,6 +267,7 @@ function App() {
         if (!nextActiveId) navigate('challenges')
       }
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     }
   }
@@ -294,6 +304,7 @@ function App() {
           })),
       )
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     } finally {
       if (!silent) setIsLoadingGoals(false)
@@ -342,6 +353,7 @@ function App() {
       await setLastActiveChallenge(userId, createdChallenge.id)
       navigate('today')
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     }
   }
@@ -372,6 +384,7 @@ function App() {
       setScreen('create')
       requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
     }
   }
@@ -397,6 +410,7 @@ function App() {
       })
       upsertEntryState(savedEntry)
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
       setSimpleGoals((goals) =>
         goals.map((item) => (item.id === goalId ? { ...item, done: goal.done } : item)),
@@ -425,6 +439,7 @@ function App() {
       })
       upsertEntryState(savedEntry)
     } catch (error) {
+      console.error('App error:', error)
       setAppError(formatAppError(error))
       setTimeGoals((goals) =>
         goals.map((item) => (item.id === goalId ? { ...item, actual: goal.actual } : item)),
@@ -1451,7 +1466,32 @@ function CloseIcon() {
 }
 
 function formatAppError(error) {
-  const message = String(error?.message || error || '').toLowerCase()
+  const rawMessage = String(error?.message || error || '')
+  const message = rawMessage.toLowerCase()
+
+  if (message.includes('already registered') || message.includes('already exists') || message.includes('user already')) {
+    return 'Этот email уже зарегистрирован. Перейди во “Вход” и используй свой пароль.'
+  }
+
+  if (message.includes('signup disabled')) {
+    return 'Регистрация сейчас отключена. Попробуй позже или войди в уже созданный аккаунт.'
+  }
+
+  if (message.includes('password') && (message.includes('weak') || message.includes('short') || message.includes('at least'))) {
+    return 'Пароль слишком простой или короткий. Придумай пароль минимум из 6 символов.'
+  }
+
+  if (message.includes('rate limit') || message.includes('too many') || message.includes('security purposes')) {
+    return 'Слишком много попыток подряд. Подожди пару минут и попробуй снова.'
+  }
+
+  if (message.includes('sending') || message.includes('send') || message.includes('email provider')) {
+    return 'Не получилось отправить письмо подтверждения. Проверь email или попробуй ещё раз чуть позже.'
+  }
+
+  if (message.includes('database error saving new user')) {
+    return 'Не получилось завершить регистрацию. Попробуй ещё раз чуть позже.'
+  }
 
   if (message.includes('permission denied')) {
     return 'Доступ ещё не готов. Если ты только что зарегистрировался, подтверди email по ссылке из письма и войди снова.'
