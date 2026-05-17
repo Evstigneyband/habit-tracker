@@ -851,7 +851,7 @@ function TimeGoalRow({ goal, onChange }) {
       <select value={goal.actual} onChange={(event) => onChange(event.target.value)} aria-label={`Время для ${goal.title}`}>
         {timeOptions.map((value) => (
           <option key={value} value={value}>
-            {formatHours(value)}
+            {formatTimeSelect(value)}
           </option>
         ))}
       </select>
@@ -1219,7 +1219,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             <select value={timeDraftHours} onChange={(event) => setTimeDraftHours(event.target.value)}>
               {timeOptions.filter((value) => value > 0).map((value) => (
                 <option key={value} value={value}>
-                  {formatHours(value)}
+                  {formatTimeSelect(value)}
                 </option>
               ))}
             </select>
@@ -1260,7 +1260,7 @@ function DraftGoalList({ goals, onRemove, onUpdate, onMove, withHours = false, c
                 <select value={goal.targetHours} onChange={(event) => onUpdate(goal.id, 'targetHours', event.target.value)}>
                   {timeOptions.filter((value) => value > 0).map((value) => (
                     <option key={value} value={value}>
-                      {formatHours(value)}
+                      {formatTimeSelect(value)}
                     </option>
                   ))}
                 </select>
@@ -1317,6 +1317,14 @@ function formatHours(value) {
   if (number === 1) return '1 час'
   if (number > 1 && number < 5) return `${number} часа`
   return `${number} часов`
+}
+
+function formatTimeSelect(value) {
+  const number = Number(value || 0)
+  if (number === 0) return '0'
+  if (number === 0.5) return '30 м'
+  if (number % 1 === 0.5) return `${Math.floor(number)} ч 30 м`
+  return `${number} ч`
 }
 
 function findEntry(entries, goalId) {

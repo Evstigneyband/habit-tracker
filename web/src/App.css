@@ -414,7 +414,7 @@
 }
 
 .time-add-row {
-  grid-template-columns: minmax(0, 1fr) 105px 44px;
+  grid-template-columns: minmax(0, 1fr) 88px 44px;
 }
 
 .add-row input,
@@ -429,6 +429,12 @@
   background: #fff;
   font-size: 16px;
   font-weight: 800;
+}
+
+.time-add-row select {
+  padding: 0 9px;
+  font-size: 14px;
+  font-weight: 850;
 }
 
 .add-row button {
@@ -506,7 +512,7 @@
 }
 
 .draft-time-edit {
-  grid-template-columns: minmax(0, 1fr) 112px;
+  grid-template-columns: minmax(0, 1fr) 88px;
 }
 
 .draft-text-edit input,
@@ -522,6 +528,12 @@
   background: #fff;
   font-size: 16px;
   font-weight: 800;
+}
+
+.draft-time-edit select {
+  padding: 0 9px;
+  font-size: 14px;
+  font-weight: 850;
 }
 
 .draft-actions {
@@ -630,7 +642,7 @@
 }
 
 .time-row {
-  grid-template-columns: auto minmax(0, 1fr) minmax(94px, 106px) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(76px, 88px) auto;
 }
 
 .goal-copy {
@@ -647,12 +659,12 @@
 .time-row select {
   min-height: 30px;
   min-width: 0;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 0;
   border-radius: 999px;
   color: #111816;
   background: #f4f5f3;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
 }
 
