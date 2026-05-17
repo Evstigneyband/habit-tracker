@@ -38,6 +38,15 @@ function App() {
   useEffect(() => {
     const cleanupTelegram = setupTelegramWebApp(telegramContext)
     let isMounted = true
+    const routeAfterLoad = (nextChallenges) => {
+      if (nextChallenges.length === 0) {
+        setEditingChallenge(null)
+        navigate('create')
+        return
+      }
+
+      navigate('today')
+    }
 
     getCurrentSession()
       .then(async (session) => {
@@ -47,8 +56,8 @@ function App() {
           setUserId(session.user.id)
           setUserEmail(session.user.email || '')
           setIsAuthed(true)
-          await loadChallenges(session.user.id, session.user.email || '')
-          navigate('today')
+          const nextChallenges = await loadChallenges(session.user.id, session.user.email || '')
+          routeAfterLoad(nextChallenges)
           return
         }
 
@@ -59,8 +68,8 @@ function App() {
           setUserId(telegramUser.id)
           setUserEmail(telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           setIsAuthed(true)
-          await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
-          navigate('today')
+          const nextChallenges = await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
+          routeAfterLoad(nextChallenges)
         }
       })
       .catch((error) => {
@@ -179,8 +188,8 @@ function App() {
       setUserEmail(user.email || email)
       setUserId(user.id)
       setIsAuthed(true)
-      await loadChallenges(user.id)
-      navigate('today')
+      const nextChallenges = await loadChallenges(user.id, user.email || email)
+      navigateAfterChallengesLoad(nextChallenges)
     } catch (error) {
       console.error('Auth error:', error)
       setAuthError(formatAppError(error))
@@ -227,12 +236,24 @@ function App() {
         }
         return nextChallenges[0]?.id || ''
       })
+      return nextChallenges
     } catch (error) {
       console.error('App error:', error)
       setAppError(formatAppError(error))
+      return []
     } finally {
       setIsLoadingChallenges(false)
     }
+  }
+
+  function navigateAfterChallengesLoad(nextChallenges) {
+    if (nextChallenges.length === 0) {
+      setEditingChallenge(null)
+      navigate('create')
+      return
+    }
+
+    navigate('today')
   }
 
   async function selectChallenge(challengeId) {
@@ -280,7 +301,10 @@ function App() {
         setRawGoals([])
         setDailyEntries([])
         await setLastActiveChallenge(userId, nextActiveId || null)
-        if (!nextActiveId) navigate('challenges')
+        if (!nextActiveId) {
+          setEditingChallenge(null)
+          navigate('create')
+        }
       }
     } catch (error) {
       console.error('App error:', error)
