@@ -573,7 +573,6 @@ function App() {
           onDeleteChallenge={handleDeleteChallenge}
           onEditChallenge={handleEditChallenge}
           onCreate={() => navigate('create')}
-          onCurrent={() => navigate('today')}
         />
       )}
       {screen === 'analytics' && (
@@ -869,7 +868,6 @@ function ChallengesScreen({
   onDeleteChallenge,
   onEditChallenge,
   onCreate,
-  onCurrent,
 }) {
   const [openId, setOpenId] = useState('')
 
@@ -882,9 +880,8 @@ function ChallengesScreen({
           После входа приложение открывает последний активный челлендж, но здесь можно
           переключиться на любой другой.
         </p>
-        <div className="hero-actions">
+        <div className="hero-actions hero-actions-single">
           <button type="button" onClick={onCreate}>Создать новый</button>
-          <button type="button" onClick={onCurrent}>Текущий</button>
         </div>
       </div>
 
