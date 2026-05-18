@@ -417,6 +417,12 @@
   padding-top: 2px;
 }
 
+.draft-goals + .goal-builder {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1ee;
+}
+
 .goal-builder h3 {
   margin: 0;
   color: #111816;

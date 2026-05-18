@@ -1151,6 +1151,15 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
     })
   }
 
+  function scrollFieldIntoView(event) {
+    const target = event.target
+    if (!(target instanceof HTMLElement)) return
+
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 280)
+  }
+
   return (
     <section className="screen">
       <div className="hero-card">
@@ -1163,7 +1172,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
         </p>
       </div>
 
-      <form className="form challenge-form" onSubmit={submit}>
+      <form className="form challenge-form" onSubmit={submit} onFocus={scrollFieldIntoView}>
         <div className="surface form-section">
           <label className="field">
             <span>Название челленджа</span>
@@ -1173,6 +1182,9 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             <span>Количество дней</span>
             <input name="durationDays" type="number" defaultValue={editingChallenge?.durationDays || 30} min={1} max={365} required />
           </label>
+        </div>
+
+        <div className="surface form-section">
           <div className="goal-builder">
             <h3>Простые цели</h3>
           </div>
@@ -1199,9 +1211,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             onMove={(goalId, direction) => moveGoal('simple', goalId, direction)}
             canEditContent={isEditing}
           />
-        </div>
 
-        <div className="surface form-section">
           <div className="goal-builder">
             <h3>Цели по часам</h3>
           </div>
