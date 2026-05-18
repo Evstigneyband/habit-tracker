@@ -1163,19 +1163,18 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
         </p>
       </div>
 
-      <form className="surface form" onSubmit={submit}>
-        <label className="field">
-          <span>Название челленджа</span>
-          <input name="title" defaultValue={editingChallenge?.title || ''} placeholder="Например: Майский рывок" required />
-        </label>
-        <label className="field">
-          <span>Количество дней</span>
-          <input name="durationDays" type="number" defaultValue={editingChallenge?.durationDays || 30} min={1} max={365} required />
-        </label>
-        <div className="goal-builder">
-          <div>
+      <form className="form challenge-form" onSubmit={submit}>
+        <div className="surface form-section">
+          <label className="field">
+            <span>Название челленджа</span>
+            <input name="title" defaultValue={editingChallenge?.title || ''} placeholder="Например: Путь к успеху" required />
+          </label>
+          <label className="field">
+            <span>Количество дней</span>
+            <input name="durationDays" type="number" defaultValue={editingChallenge?.durationDays || 30} min={1} max={365} required />
+          </label>
+          <div className="goal-builder">
             <h3>Простые цели</h3>
-            <p>Отмечаются галочкой.</p>
           </div>
           <div className="add-row">
             <input
@@ -1202,16 +1201,15 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
           />
         </div>
 
-        <div className="goal-builder">
-          <div>
+        <div className="surface form-section">
+          <div className="goal-builder">
             <h3>Цели по часам</h3>
-            <p>Закрываются, когда набрано нужное время.</p>
           </div>
           <div className="add-row time-add-row">
             <input
               value={timeDraftTitle}
               onChange={(event) => setTimeDraftTitle(event.target.value)}
-              placeholder="Например: Wizard Elements"
+              placeholder="Например: английский"
             />
             <select value={timeDraftHours} onChange={(event) => setTimeDraftHours(event.target.value)}>
               {timeOptions.filter((value) => value > 0).map((value) => (

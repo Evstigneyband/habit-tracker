@@ -322,24 +322,34 @@
   gap: 10px;
 }
 
+.challenge-form {
+  gap: 12px;
+}
+
+.form-section {
+  display: grid;
+  gap: 10px;
+}
+
 .field {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   color: #68736f;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .field input {
-  min-height: 44px;
+  min-height: 40px;
   width: 100%;
-  padding: 0 13px;
+  padding: 0 12px;
   border: 1px solid #e2e8e4;
   border-radius: 12px;
   outline: 0;
   color: #111816;
   background: #fff;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .field input:focus,
@@ -403,15 +413,16 @@
 
 .goal-builder {
   display: grid;
-  gap: 8px;
-  padding-top: 6px;
+  gap: 6px;
+  padding-top: 2px;
 }
 
 .goal-builder h3 {
   margin: 0;
   color: #111816;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
+  line-height: 1.1;
 }
 
 .goal-builder p {
@@ -428,26 +439,26 @@
 }
 
 .time-add-row {
-  grid-template-columns: minmax(0, 1fr) 88px 44px;
+  grid-template-columns: minmax(0, 1fr) 82px 40px;
 }
 
 .add-row input,
 .add-row select {
   min-width: 0;
-  min-height: 44px;
-  padding: 0 13px;
+  min-height: 40px;
+  padding: 0 11px;
   border: 1px solid #e2e8e4;
   border-radius: 12px;
   outline: 0;
   color: #111816;
   background: #fff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .time-add-row select {
-  padding: 0 9px;
-  font-size: 14px;
+  padding: 0 7px;
+  font-size: 13px;
   font-weight: 850;
 }
 
@@ -456,7 +467,7 @@
   border-radius: 12px;
   color: #fff;
   background: #12241b;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
 }
