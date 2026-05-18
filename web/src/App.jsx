@@ -1159,7 +1159,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
       const viewport = window.visualViewport
       const viewportHeight = viewport?.height || window.innerHeight
       const viewportOffsetTop = viewport?.offsetTop || 0
-      const desiredTop = viewportOffsetTop + Math.min(170, viewportHeight * 0.28)
+      const desiredTop = viewportOffsetTop + Math.min(120, viewportHeight * 0.2)
       const targetTop = target.getBoundingClientRect().top
 
       window.scrollBy({
@@ -1175,6 +1175,8 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
     if (!['INPUT', 'SELECT'].includes(event.target.tagName)) return
 
     event.preventDefault()
+    if (event.target.dataset.enterAction === 'add-simple') addSimpleGoal()
+    if (event.target.dataset.enterAction === 'add-time') addTimeGoal()
     event.target.blur()
   }
 
@@ -1210,6 +1212,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             <input
               value={simpleDraft}
               onChange={(event) => setSimpleDraft(event.target.value)}
+              data-enter-action="add-simple"
               placeholder="Например: спорт"
             />
             <button type="button" onClick={addSimpleGoal} aria-label="Добавить простую цель">
@@ -1231,6 +1234,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             <input
               value={timeDraftTitle}
               onChange={(event) => setTimeDraftTitle(event.target.value)}
+              data-enter-action="add-time"
               placeholder="Например: английский"
             />
             <select value={timeDraftHours} onChange={(event) => setTimeDraftHours(event.target.value)}>
