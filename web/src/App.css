@@ -979,6 +979,13 @@
   box-shadow: 0 16px 40px rgba(8, 18, 14, .28);
   backdrop-filter: blur(14px);
   transform: translateX(-50%);
+  transition: opacity .18s ease, transform .22s ease;
+}
+
+body.keyboard-active .bottom-nav {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(100% + 28px));
 }
 
 .bottom-nav button {

@@ -37,6 +37,61 @@ function App() {
   const [editingChallenge, setEditingChallenge] = useState(null)
 
   useEffect(() => {
+    const isEditableControl = (target) =>
+      target instanceof HTMLElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)
+
+    const scrollActiveControl = () => {
+      const target = document.activeElement
+      if (!isEditableControl(target)) return
+
+      const viewport = window.visualViewport
+      const viewportHeight = viewport?.height || window.innerHeight
+      const viewportOffsetTop = viewport?.offsetTop || 0
+      const rect = target.getBoundingClientRect()
+      const desiredTop = viewportOffsetTop + Math.min(110, viewportHeight * 0.22)
+      const safeBottom = viewportOffsetTop + viewportHeight - 120
+
+      if (rect.bottom > safeBottom || rect.top < desiredTop) {
+        window.scrollBy({
+          top: rect.top - desiredTop,
+          behavior: 'smooth',
+        })
+      }
+    }
+
+    const scheduleScroll = () => {
+      window.setTimeout(scrollActiveControl, 80)
+      window.setTimeout(scrollActiveControl, 360)
+      window.setTimeout(scrollActiveControl, 720)
+    }
+
+    const handleFocusIn = (event) => {
+      if (!isEditableControl(event.target)) return
+      document.body.classList.add('keyboard-active')
+      scheduleScroll()
+    }
+
+    const handleFocusOut = () => {
+      window.setTimeout(() => {
+        if (!isEditableControl(document.activeElement)) {
+          document.body.classList.remove('keyboard-active')
+        }
+      }, 120)
+    }
+
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('focusout', handleFocusOut)
+    window.visualViewport?.addEventListener('resize', scheduleScroll)
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('focusout', handleFocusOut)
+      window.visualViewport?.removeEventListener('resize', scheduleScroll)
+      document.body.classList.remove('keyboard-active')
+    }
+  }, [])
+
+  useEffect(() => {
     const cleanupTelegram = setupTelegramWebApp(telegramContext)
     let isMounted = true
     const routeAfterLoad = (nextChallenges) => {
@@ -1155,18 +1210,25 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
     const target = event.target
     if (!(target instanceof HTMLElement)) return
 
-    window.setTimeout(() => {
+    const moveFieldIntoView = () => {
       const viewport = window.visualViewport
       const viewportHeight = viewport?.height || window.innerHeight
       const viewportOffsetTop = viewport?.offsetTop || 0
-      const desiredTop = viewportOffsetTop + Math.min(120, viewportHeight * 0.2)
-      const targetTop = target.getBoundingClientRect().top
+      const targetRect = target.getBoundingClientRect()
+      const desiredTop = viewportOffsetTop + Math.min(110, viewportHeight * 0.22)
+      const safeBottom = viewportOffsetTop + viewportHeight - 120
 
-      window.scrollBy({
-        top: targetTop - desiredTop,
-        behavior: 'smooth',
-      })
-    }, 360)
+      if (targetRect.bottom > safeBottom || targetRect.top < desiredTop) {
+        window.scrollBy({
+          top: targetRect.top - desiredTop,
+          behavior: 'smooth',
+        })
+      }
+    }
+
+    window.setTimeout(moveFieldIntoView, 120)
+    window.setTimeout(moveFieldIntoView, 420)
+    window.setTimeout(moveFieldIntoView, 780)
   }
 
   function handleFormKeyDown(event) {
