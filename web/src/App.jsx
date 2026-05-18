@@ -846,7 +846,7 @@ function ProgressCard({ progress, challenge }) {
       </div>
 
       <p className="progress-caption">
-        {progress.done} из {progress.total} целей закрыто сегодня. Общий прогресс: {progress.overallPercent}%
+        {progress.done} из {progress.total} целей закрыто сегодня.
       </p>
     </section>
   )
