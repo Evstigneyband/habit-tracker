@@ -17,14 +17,15 @@ export default async function handler(request, response) {
 
   const url = new URL(request.url, 'https://habit-tracker.local')
   const isManualTest = ['1', 'true', 'yes'].includes(String(url.searchParams.get('test') || '').toLowerCase())
+  const isReport = ['1', 'true', 'yes'].includes(String(url.searchParams.get('report') || '').toLowerCase())
   const isAuthorized = !cronSecret || request.headers.authorization === `Bearer ${cronSecret}`
 
   if (cronSecret && !isAuthorized) {
     return response.status(401).json({ error: 'Unauthorized' })
   }
 
-  if (isManualTest && !cronSecret) {
-    return response.status(401).json({ error: 'Manual test requires CRON_SECRET' })
+  if ((isManualTest || isReport) && !cronSecret) {
+    return response.status(401).json({ error: 'Manual access requires CRON_SECRET' })
   }
 
   if (!supabaseUrl || !supabaseServiceRoleKey || !telegramBotToken) {
@@ -40,6 +41,12 @@ export default async function handler(request, response) {
 
   try {
     const profiles = await getTelegramProfiles(supabase)
+
+    if (isReport) {
+      const report = await buildReminderReport(supabase, profiles)
+      return response.status(200).json(report)
+    }
+
     const result = {
       checked: profiles.length,
       sent: 0,
@@ -71,6 +78,77 @@ export default async function handler(request, response) {
     console.error('Telegram reminder error:', error)
     return response.status(500).json({ error: 'Telegram reminder failed' })
   }
+}
+
+async function buildReminderReport(supabase, profiles) {
+  const now = new Date()
+  const rows = []
+
+  for (const profile of profiles) {
+    const timezone = profile.timezone || 'Europe/Podgorica'
+    const today = getDateInTimezone(now, timezone)
+    const currentHour = getHourInTimezone(now, timezone)
+    const lastSeenDate = profile.last_seen_at ? getDateInTimezone(new Date(profile.last_seen_at), timezone) : null
+    const challenge = await getReminderChallenge(supabase, profile)
+    const sentToday = await getReminderRecord(supabase, profile.id, today)
+
+    let dayNumber = null
+    let reason = 'Нет активного челленджа'
+    let eligible = false
+
+    if (challenge) {
+      dayNumber = getChallengeDay(today, challenge.start_date)
+      reason = getSkipReason({
+        currentHour,
+        dayNumber,
+        durationDays: Number(challenge.duration_days || 0),
+        lastSeenDate,
+        sentToday,
+        today,
+      })
+      eligible = !reason
+    }
+
+    rows.push({
+      name: profile.display_name || profile.telegram_username || 'Без имени',
+      username: profile.telegram_username || '',
+      userId: maskId(profile.id),
+      telegramId: maskId(profile.telegram_id),
+      timezone,
+      localDate: today,
+      localHour: currentHour,
+      lastSeenAt: profile.last_seen_at || null,
+      lastSeenDate,
+      challenge: challenge
+        ? {
+            title: challenge.title,
+            startDate: challenge.start_date,
+            durationDays: Number(challenge.duration_days || 0),
+            dayNumber,
+          }
+        : null,
+      reminderSentToday: Boolean(sentToday),
+      reminderSentAt: sentToday?.created_at || null,
+      wouldSendAtScheduledHour: eligible,
+      reason: reason || 'Подходит под отправку',
+    })
+  }
+
+  return {
+    nowUtc: now.toISOString(),
+    targetHour,
+    profileCount: profiles.length,
+    profiles: rows,
+  }
+}
+
+function getSkipReason({ currentHour, dayNumber, durationDays, lastSeenDate, sentToday, today }) {
+  if (currentHour !== targetHour) return `Сейчас ${currentHour}:00, отправка только в ${targetHour}:00`
+  if (lastSeenDate === today) return 'Пользователь уже открывал приложение сегодня'
+  if (dayNumber < 1 || dayNumber > durationDays) return 'Сегодня вне дат челленджа'
+  if (dayNumber <= 1) return 'Первый день челленджа, напоминание не отправляется'
+  if (sentToday) return 'Напоминание сегодня уже было отправлено'
+  return ''
 }
 
 async function getTelegramProfiles(supabase) {
@@ -142,16 +220,21 @@ async function getReminderChallenge(supabase, profile) {
 }
 
 async function wasReminderSent(supabase, userId, reminderDate) {
+  const data = await getReminderRecord(supabase, userId, reminderDate)
+  return Boolean(data)
+}
+
+async function getReminderRecord(supabase, userId, reminderDate) {
   const { data, error } = await supabase
     .from('telegram_reminders')
-    .select('id')
+    .select('id, created_at')
     .eq('user_id', userId)
     .eq('reminder_type', reminderType)
     .eq('reminder_date', reminderDate)
     .maybeSingle()
 
   if (error) throw error
-  return Boolean(data)
+  return data
 }
 
 async function markReminderSent(supabase, reminder) {
@@ -240,6 +323,12 @@ function parseDateOnly(dateString) {
 
 function getFirstName(displayName) {
   return String(displayName || '').trim().split(/\s+/)[0] || ''
+}
+
+function maskId(value) {
+  const text = String(value || '')
+  if (text.length <= 8) return text
+  return `${text.slice(0, 4)}…${text.slice(-4)}`
 }
 
 function getAppUrl() {
