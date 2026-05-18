@@ -8,6 +8,7 @@ const cronSecret = process.env.CRON_SECRET
 const appUrl = getAppUrl()
 const reminderType = 'daily_open_challenge'
 const targetHour = Number(process.env.TELEGRAM_REMINDER_HOUR || 12)
+const reminderDayStartHour = Number(process.env.TELEGRAM_REMINDER_DAY_START_HOUR || 2)
 
 export default async function handler(request, response) {
   if (request.method !== 'GET' && request.method !== 'POST') {
@@ -89,12 +90,14 @@ async function buildReminderReport(supabase, profiles) {
     const today = getDateInTimezone(now, timezone)
     const currentHour = getHourInTimezone(now, timezone)
     const lastSeenDate = profile.last_seen_at ? getDateInTimezone(new Date(profile.last_seen_at), timezone) : null
+    const lastSeenHour = profile.last_seen_at ? getHourInTimezone(new Date(profile.last_seen_at), timezone) : null
+    const seenSinceReminderDayStart = wasSeenSinceReminderDayStart(profile.last_seen_at, timezone, today)
     const challenge = await getReminderChallenge(supabase, profile)
     const sentToday = await getReminderRecord(supabase, profile.id, today)
 
     let dayNumber = null
     let reason = 'Нет активного челленджа'
-    let eligible = false
+    let scheduledReason = reason
 
     if (challenge) {
       dayNumber = getChallengeDay(today, challenge.start_date)
@@ -102,11 +105,16 @@ async function buildReminderReport(supabase, profiles) {
         currentHour,
         dayNumber,
         durationDays: Number(challenge.duration_days || 0),
-        lastSeenDate,
+        seenSinceReminderDayStart,
         sentToday,
-        today,
       })
-      eligible = !reason
+      scheduledReason = getSkipReason({
+        currentHour: targetHour,
+        dayNumber,
+        durationDays: Number(challenge.duration_days || 0),
+        seenSinceReminderDayStart,
+        sentToday,
+      })
     }
 
     rows.push({
@@ -119,6 +127,8 @@ async function buildReminderReport(supabase, profiles) {
       localHour: currentHour,
       lastSeenAt: profile.last_seen_at || null,
       lastSeenDate,
+      lastSeenHour,
+      reminderDayStartHour,
       challenge: challenge
         ? {
             title: challenge.title,
@@ -129,7 +139,8 @@ async function buildReminderReport(supabase, profiles) {
         : null,
       reminderSentToday: Boolean(sentToday),
       reminderSentAt: sentToday?.created_at || null,
-      wouldSendAtScheduledHour: eligible,
+      wouldSendAtScheduledHour: !scheduledReason,
+      scheduledReason: scheduledReason || 'Подходит под отправку',
       reason: reason || 'Подходит под отправку',
     })
   }
@@ -137,14 +148,15 @@ async function buildReminderReport(supabase, profiles) {
   return {
     nowUtc: now.toISOString(),
     targetHour,
+    reminderDayStartHour,
     profileCount: profiles.length,
     profiles: rows,
   }
 }
 
-function getSkipReason({ currentHour, dayNumber, durationDays, lastSeenDate, sentToday, today }) {
+function getSkipReason({ currentHour, dayNumber, durationDays, seenSinceReminderDayStart, sentToday }) {
   if (currentHour !== targetHour) return `Сейчас ${currentHour}:00, отправка только в ${targetHour}:00`
-  if (lastSeenDate === today) return 'Пользователь уже открывал приложение сегодня'
+  if (seenSinceReminderDayStart) return `Пользователь уже открывал приложение после ${formatHour(reminderDayStartHour)}`
   if (dayNumber < 1 || dayNumber > durationDays) return 'Сегодня вне дат челленджа'
   if (dayNumber <= 1) return 'Первый день челленджа, напоминание не отправляется'
   if (sentToday) return 'Напоминание сегодня уже было отправлено'
@@ -169,7 +181,7 @@ async function buildReminder(supabase, profile, { force = false } = {}) {
   const currentHour = getHourInTimezone(now, timezone)
 
   if (!force && currentHour !== targetHour) return null
-  if (!force && profile.last_seen_at && getDateInTimezone(new Date(profile.last_seen_at), timezone) === today) return null
+  if (!force && wasSeenSinceReminderDayStart(profile.last_seen_at, timezone, today)) return null
 
   const challenge = await getReminderChallenge(supabase, profile)
   if (!challenge) return null
@@ -304,6 +316,20 @@ function getHourInTimezone(date, timezone) {
   }).format(date)
 
   return Number(hour)
+}
+
+function wasSeenSinceReminderDayStart(lastSeenAt, timezone, today) {
+  if (!lastSeenAt) return false
+
+  const lastSeen = new Date(lastSeenAt)
+  const lastSeenDate = getDateInTimezone(lastSeen, timezone)
+  const lastSeenHour = getHourInTimezone(lastSeen, timezone)
+
+  return lastSeenDate === today && lastSeenHour >= reminderDayStartHour
+}
+
+function formatHour(hour) {
+  return `${String(hour).padStart(2, '0')}:00`
 }
 
 function getChallengeDay(today, startDate) {
