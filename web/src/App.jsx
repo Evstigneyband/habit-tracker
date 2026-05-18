@@ -1156,8 +1156,26 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
     if (!(target instanceof HTMLElement)) return
 
     window.setTimeout(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 280)
+      const viewport = window.visualViewport
+      const viewportHeight = viewport?.height || window.innerHeight
+      const viewportOffsetTop = viewport?.offsetTop || 0
+      const desiredTop = viewportOffsetTop + Math.min(170, viewportHeight * 0.28)
+      const targetTop = target.getBoundingClientRect().top
+
+      window.scrollBy({
+        top: targetTop - desiredTop,
+        behavior: 'smooth',
+      })
+    }, 360)
+  }
+
+  function handleFormKeyDown(event) {
+    if (event.key !== 'Enter') return
+    if (!(event.target instanceof HTMLElement)) return
+    if (!['INPUT', 'SELECT'].includes(event.target.tagName)) return
+
+    event.preventDefault()
+    event.target.blur()
   }
 
   return (
@@ -1172,7 +1190,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
         </p>
       </div>
 
-      <form className="form challenge-form" onSubmit={submit} onFocus={scrollFieldIntoView}>
+      <form className="form challenge-form" onSubmit={submit} onFocus={scrollFieldIntoView} onKeyDownCapture={handleFormKeyDown}>
         <div className="surface form-section">
           <label className="field">
             <span>Название челленджа</span>
@@ -1192,12 +1210,6 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
             <input
               value={simpleDraft}
               onChange={(event) => setSimpleDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  addSimpleGoal()
-                }
-              }}
               placeholder="Например: спорт"
             />
             <button type="button" onClick={addSimpleGoal} aria-label="Добавить простую цель">

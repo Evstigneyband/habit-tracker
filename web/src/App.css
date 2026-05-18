@@ -340,9 +340,9 @@
 }
 
 .field input {
-  min-height: 40px;
+  min-height: 44px;
   width: 100%;
-  padding: 0 12px;
+  padding: 4px 12px;
   border: 1px solid #e2e8e4;
   border-radius: 12px;
   outline: 0;
@@ -350,6 +350,10 @@
   background: #fff;
   font-size: 14px;
   font-weight: 800;
+  line-height: 1.35;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .field input:focus,
@@ -451,8 +455,8 @@
 .add-row input,
 .add-row select {
   min-width: 0;
-  min-height: 40px;
-  padding: 0 11px;
+  min-height: 44px;
+  padding: 4px 11px;
   border: 1px solid #e2e8e4;
   border-radius: 12px;
   outline: 0;
@@ -460,6 +464,8 @@
   background: #fff;
   font-size: 14px;
   font-weight: 800;
+  line-height: 1.35;
+  box-sizing: border-box;
 }
 
 .time-add-row select {
@@ -551,7 +557,7 @@
 .draft-time-edit select {
   min-width: 0;
   min-height: 34px;
-  padding: 0 10px;
+  padding: 4px 10px;
   border: 1px solid #e2e8e4;
   border-radius: 10px;
   outline: 0;
@@ -559,6 +565,8 @@
   background: #fff;
   font-size: 16px;
   font-weight: 800;
+  line-height: 1.3;
+  box-sizing: border-box;
 }
 
 .draft-time-edit select {
