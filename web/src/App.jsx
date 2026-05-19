@@ -166,6 +166,11 @@ function App() {
   }, [activeChallengeId])
 
   useEffect(() => {
+    if (!isAuthed || !inviteToken) return
+    navigate('invite')
+  }, [inviteToken, isAuthed])
+
+  useEffect(() => {
     activeChallengeIdRef.current = activeChallengeId
   }, [activeChallengeId])
 
@@ -555,7 +560,8 @@ function App() {
         challengeTitle: activeChallenge.title,
       })
       const inviteLink = buildInviteLink(invite.token)
-      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.`
+      const fallbackInviteLink = buildDirectInviteLink(invite.token)
+      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.\n\nЕсли приглашение не открылось сразу, нажми эту ссылку: ${fallbackInviteLink}`
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`
 
       if (telegramContext.webApp?.openTelegramLink) {
@@ -1778,17 +1784,27 @@ function getMemberTodayPercent(userId, entries, challenge) {
 
 function getInitialInviteToken() {
   if (typeof window === 'undefined') return ''
-  const params = new URLSearchParams(window.location.search)
-  const directToken = params.get('invite')
-  if (directToken) return directToken
+  const url = new URL(window.location.href)
+  const candidates = [
+    url.searchParams.get('invite'),
+    url.searchParams.get('startapp'),
+    url.searchParams.get('tgWebAppStartParam'),
+  ]
 
-  const startApp = params.get('tgWebAppStartParam') || params.get('startapp')
-  return normalizeInviteToken(startApp)
+  const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash
+  if (hash) {
+    const hashParams = new URLSearchParams(hash.startsWith('?') ? hash.slice(1) : hash)
+    candidates.push(hashParams.get('invite'), hashParams.get('startapp'), hashParams.get('tgWebAppStartParam'))
+  }
+
+  return candidates.map(normalizeInviteToken).find(Boolean) || ''
 }
 
 function normalizeInviteToken(value) {
   if (!value) return ''
-  return value.startsWith('invite_') ? value.slice('invite_'.length) : ''
+  const trimmed = String(value).trim()
+  if (trimmed.startsWith('invite_')) return trimmed.slice('invite_'.length)
+  return /^[a-f0-9]{20,}$/i.test(trimmed) ? trimmed : ''
 }
 
 function clearInviteFromUrl() {
@@ -1797,6 +1813,7 @@ function clearInviteFromUrl() {
   url.searchParams.delete('invite')
   url.searchParams.delete('tgWebAppStartParam')
   url.searchParams.delete('startapp')
+  url.hash = ''
   window.history.replaceState({}, '', url)
 }
 
@@ -1804,6 +1821,10 @@ function buildInviteLink(token) {
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'evstigney_challenge_bot'
   if (botUsername) return `https://t.me/${botUsername}?startapp=invite_${token}`
 
+  return buildDirectInviteLink(token)
+}
+
+function buildDirectInviteLink(token) {
   const url = new URL(window.location.origin)
   url.searchParams.set('invite', token)
   return url.toString()
