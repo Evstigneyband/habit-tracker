@@ -2,7 +2,7 @@ import { requireSupabase } from '../lib/supabaseClient'
 
 export async function getUserChallenges(userId) {
   const supabase = requireSupabase()
-  const { data, error } = await supabase
+  const { data: ownChallenges, error } = await supabase
     .from('challenges')
     .select('*')
     .eq('user_id', userId)
@@ -10,7 +10,28 @@ export async function getUserChallenges(userId) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data
+
+  const { data: memberRows, error: memberError } = await supabase
+    .from('challenge_members')
+    .select('challenge_id, role, challenges (*)')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+
+  if (memberError && memberError.code !== '42P01') throw memberError
+
+  const sharedChallenges = (memberRows || [])
+    .map((row) => row.challenges)
+    .filter(Boolean)
+    .filter((challenge) => challenge.status !== 'deleted')
+
+  const byId = new Map()
+  ;[...(ownChallenges || []), ...sharedChallenges].forEach((challenge) => {
+    byId.set(challenge.id, challenge)
+  })
+
+  return Array.from(byId.values()).sort((left, right) => {
+    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+  })
 }
 
 export async function getUserProfile(userId) {
@@ -45,6 +66,8 @@ export async function createChallenge({ userId, title, durationDays, startDate, 
 
   if (error) throw error
 
+  await ensureChallengeOwnerMember({ challengeId: data.id, userId })
+
   const goalRows = [
     ...simpleGoals.map((goal, index) => ({
       challenge_id: data.id,
@@ -72,6 +95,23 @@ export async function createChallenge({ userId, title, durationDays, startDate, 
   }
 
   return data
+}
+
+async function ensureChallengeOwnerMember({ challengeId, userId }) {
+  const supabase = requireSupabase()
+  const { error } = await supabase
+    .from('challenge_members')
+    .upsert(
+      {
+        challenge_id: challengeId,
+        user_id: userId,
+        role: 'owner',
+        status: 'active',
+      },
+      { onConflict: 'challenge_id,user_id', ignoreDuplicates: true },
+    )
+
+  if (error && error.code !== '42P01') throw error
 }
 
 export async function setLastActiveChallenge(userId, challengeId) {
@@ -246,6 +286,79 @@ export async function getChallengeEntries(challengeId) {
   return data
 }
 
+export async function getChallengeMembers(challengeId) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('challenge_members')
+    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
+    .eq('challenge_id', challengeId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+
+  if (error && error.code === '42P01') return []
+  if (error) throw error
+  return data || []
+}
+
+export async function createChallengeInvite({ challengeId, userId, challengeTitle }) {
+  const supabase = requireSupabase()
+  const token = crypto.randomUUID().replaceAll('-', '')
+  const { data, error } = await supabase
+    .from('challenge_invites')
+    .insert({
+      challenge_id: challengeId,
+      created_by: userId,
+      token,
+      challenge_title: challengeTitle,
+    })
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function getChallengeInvite(token) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('challenge_invites')
+    .select('id, challenge_id, challenge_title, created_by, expires_at, status')
+    .eq('token', token)
+    .eq('status', 'active')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function joinChallengeInvite({ token, userId }) {
+  const supabase = requireSupabase()
+  const invite = await getChallengeInvite(token)
+
+  const { error: memberError } = await supabase
+    .from('challenge_members')
+    .upsert(
+      {
+        challenge_id: invite.challenge_id,
+        user_id: userId,
+        role: 'member',
+        status: 'active',
+      },
+      { onConflict: 'challenge_id,user_id', ignoreDuplicates: true },
+    )
+
+  if (memberError) throw memberError
+
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .eq('id', invite.challenge_id)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export async function saveDailyEntry({
   challengeId,
   goal,
@@ -277,10 +390,37 @@ export async function saveDailyEntry({
         completion_percent: completed ? 100 : 0,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'goal_id,entry_date' },
+      { onConflict: 'goal_id,user_id,entry_date' },
     )
     .select('*')
     .single()
+
+  if (error?.code === '42P10') {
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('daily_entries')
+      .upsert(
+        {
+          challenge_id: challengeId,
+          goal_id: goal.id,
+          user_id: userId,
+          entry_date: entryDate,
+          day_number: dayNumber,
+          goal_type: goal.goal_type,
+          is_checked: !isTimeGoal && Boolean(isChecked),
+          target_hours: targetHours,
+          actual_hours: isTimeGoal ? Number(actualHours) : 0,
+          is_completed: completed,
+          completion_percent: completed ? 100 : 0,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'goal_id,entry_date' },
+      )
+      .select('*')
+      .single()
+
+    if (fallbackError) throw fallbackError
+    return fallbackData
+  }
 
   if (error) throw error
   return data

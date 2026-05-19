@@ -3,11 +3,15 @@ import { getCurrentSession, signInWithEmail, signInWithTelegram, signOut, signUp
 import { supabase } from './lib/supabaseClient'
 import {
   createChallenge,
+  createChallengeInvite,
   deleteChallenge,
   getChallengeEntries,
   getChallengeGoals,
+  getChallengeInvite,
+  getChallengeMembers,
   getUserProfile,
   getUserChallenges,
+  joinChallengeInvite,
   restartChallenge,
   saveDailyEntry,
   setLastActiveChallenge,
@@ -31,6 +35,10 @@ function App() {
   const [timeGoals, setTimeGoals] = useState([])
   const [rawGoals, setRawGoals] = useState([])
   const [dailyEntries, setDailyEntries] = useState([])
+  const [challengeMembers, setChallengeMembers] = useState([])
+  const [inviteToken, setInviteToken] = useState(() => telegramContext.inviteToken || getInitialInviteToken())
+  const [inviteDetails, setInviteDetails] = useState(null)
+  const [inviteMessage, setInviteMessage] = useState('')
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
@@ -95,6 +103,11 @@ function App() {
     const cleanupTelegram = setupTelegramWebApp(telegramContext)
     let isMounted = true
     const routeAfterLoad = (nextChallenges) => {
+      if (inviteToken) {
+        navigate('invite')
+        return
+      }
+
       if (nextChallenges.length === 0) {
         setEditingChallenge(null)
         navigate('create')
@@ -154,6 +167,24 @@ function App() {
   useEffect(() => {
     activeChallengeIdRef.current = activeChallengeId
   }, [activeChallengeId])
+
+  useEffect(() => {
+    if (!isAuthed || !inviteToken) return undefined
+
+    let isMounted = true
+    getChallengeInvite(inviteToken)
+      .then((invite) => {
+        if (isMounted) setInviteDetails(invite)
+      })
+      .catch((error) => {
+        console.error('Invite load error:', error)
+        if (isMounted) setAppError(formatAppError(error))
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [inviteToken, isAuthed])
 
   useEffect(() => {
     if (!isAuthed || !userId || !activeChallengeId || !supabase) return undefined
@@ -265,6 +296,10 @@ function App() {
     setTimeGoals([])
     setRawGoals([])
     setDailyEntries([])
+    setChallengeMembers([])
+    setInviteToken('')
+    setInviteDetails(null)
+    setInviteMessage('')
     setIsAuthed(false)
     setAuthMode('login')
     navigate('auth')
@@ -286,6 +321,7 @@ function App() {
         setTimeGoals([])
         setRawGoals([])
         setDailyEntries([])
+        setChallengeMembers([])
       }
       setActiveChallengeId((currentId) => {
         if (currentId && nextChallenges.some((challenge) => challenge.id === currentId)) return currentId
@@ -313,6 +349,11 @@ function App() {
   }
 
   function navigateAfterChallengesLoad(nextChallenges) {
+    if (inviteToken) {
+      navigate('invite')
+      return
+    }
+
     if (nextChallenges.length === 0) {
       setEditingChallenge(null)
       navigate('create')
@@ -331,6 +372,7 @@ function App() {
       setTimeGoals([])
       setRawGoals([])
       setDailyEntries([])
+      setChallengeMembers([])
     }
 
     setScreen('today')
@@ -366,6 +408,7 @@ function App() {
         setTimeGoals([])
         setRawGoals([])
         setDailyEntries([])
+        setChallengeMembers([])
         await setLastActiveChallenge(userId, nextActiveId || null)
         if (!nextActiveId) {
           setEditingChallenge(null)
@@ -383,13 +426,15 @@ function App() {
     setAppError('')
 
     try {
-      const [goals, entries] = await Promise.all([
+      const [goals, entries, members] = await Promise.all([
         getChallengeGoals(challengeId),
         getChallengeEntries(challengeId),
+        getChallengeMembers(challengeId),
       ])
-      const todayEntries = entries.filter((entry) => entry.entry_date === getTodayDate())
+      const todayEntries = entries.filter((entry) => entry.entry_date === getTodayDate() && entry.user_id === userId)
       setRawGoals(goals)
       setDailyEntries(entries)
+      setChallengeMembers(members)
       setSimpleGoals(
         goals
           .filter((goal) => goal.goal_type === 'simple')
@@ -439,6 +484,7 @@ function App() {
         setTimeGoals([])
         setRawGoals([])
         setDailyEntries([])
+        setChallengeMembers([])
         setEditingChallenge(null)
         await setLastActiveChallenge(userId, restartedChallenge.id)
         await loadGoals(restartedChallenge.id)
@@ -493,6 +539,73 @@ function App() {
       console.error('App error:', error)
       setAppError(formatAppError(error))
     }
+  }
+
+  async function handleInviteFriend() {
+    if (!activeChallenge) return
+
+    setAppError('')
+    setInviteMessage('')
+
+    try {
+      const invite = await createChallengeInvite({
+        challengeId: activeChallenge.id,
+        userId,
+        challengeTitle: activeChallenge.title,
+      })
+      const inviteLink = buildInviteLink(invite.token)
+      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`
+
+      if (telegramContext.webApp?.openTelegramLink) {
+        telegramContext.webApp.openTelegramLink(shareUrl)
+        setInviteMessage('Открыл окно Telegram, чтобы отправить приглашение другу.')
+        return
+      }
+
+      if (navigator.share) {
+        await navigator.share({ title: 'Твой челлендж', text: shareText, url: inviteLink })
+        setInviteMessage('Приглашение готово к отправке.')
+        return
+      }
+
+      await navigator.clipboard.writeText(`${shareText}\n${inviteLink}`)
+      setInviteMessage('Ссылка приглашения скопирована.')
+    } catch (error) {
+      console.error('Invite error:', error)
+      setAppError(formatAppError(error))
+    }
+  }
+
+  async function handleAcceptInvite() {
+    if (!inviteToken) return
+
+    setAppError('')
+
+    try {
+      const joinedChallenge = await joinChallengeInvite({ token: inviteToken, userId })
+      setInviteToken('')
+      setInviteDetails(null)
+      clearInviteFromUrl()
+      const nextChallenges = await loadChallenges(userId, userEmail)
+      setActiveChallengeId(joinedChallenge.id)
+      await setLastActiveChallenge(userId, joinedChallenge.id)
+      if (!nextChallenges.some((challenge) => challenge.id === joinedChallenge.id)) {
+        setChallenges((current) => [joinedChallenge, ...current])
+      }
+      await loadGoals(joinedChallenge.id)
+      navigate('today')
+    } catch (error) {
+      console.error('Invite accept error:', error)
+      setAppError(formatAppError(error))
+    }
+  }
+
+  function handleDeclineInvite() {
+    setInviteToken('')
+    setInviteDetails(null)
+    clearInviteFromUrl()
+    navigateAfterChallengesLoad(challenges)
   }
 
   async function toggleSimpleGoal(goalId) {
@@ -614,8 +727,13 @@ function App() {
           isLoadingGoals={isLoadingGoals}
           simpleGoals={simpleGoals}
           timeGoals={timeGoals}
+          members={challengeMembers}
+          dailyEntries={dailyEntries}
+          currentUserId={userId}
+          inviteMessage={inviteMessage}
           onToggleSimple={toggleSimpleGoal}
           onSetTime={setTimeGoal}
+          onInviteFriend={handleInviteFriend}
         />
       )}
       {screen === 'challenges' && (
@@ -644,6 +762,14 @@ function App() {
           onSubmit={handleCreateChallenge}
           appError={appError}
           editingChallenge={editingChallenge}
+        />
+      )}
+      {screen === 'invite' && (
+        <InviteScreen
+          invite={inviteDetails}
+          appError={appError}
+          onAccept={handleAcceptInvite}
+          onDecline={handleDeclineInvite}
         />
       )}
     </AppShell>
@@ -788,7 +914,21 @@ function AuthScreen({ authMode, setAuthMode, onSubmit, authError }) {
   )
 }
 
-function TodayScreen({ progress, challenge, appError, isLoadingGoals, simpleGoals, timeGoals, onToggleSimple, onSetTime }) {
+function TodayScreen({
+  progress,
+  challenge,
+  appError,
+  isLoadingGoals,
+  simpleGoals,
+  timeGoals,
+  members,
+  dailyEntries,
+  currentUserId,
+  inviteMessage,
+  onToggleSimple,
+  onSetTime,
+  onInviteFriend,
+}) {
   if (!challenge) {
     return (
       <section className="screen">
@@ -804,7 +944,15 @@ function TodayScreen({ progress, challenge, appError, isLoadingGoals, simpleGoal
 
   return (
     <section className="screen">
-      <ProgressCard progress={progress} challenge={challenge} />
+      <ProgressCard
+        progress={progress}
+        challenge={challenge}
+        members={members}
+        dailyEntries={dailyEntries}
+        currentUserId={currentUserId}
+        onInviteFriend={onInviteFriend}
+      />
+      {inviteMessage && <p className="success-note">{inviteMessage}</p>}
       {appError && <p className="form-error">{appError}</p>}
       {isLoadingGoals && <p className="muted-state">Загружаю цели...</p>}
 
@@ -829,7 +977,9 @@ function TodayScreen({ progress, challenge, appError, isLoadingGoals, simpleGoal
   )
 }
 
-function ProgressCard({ progress, challenge }) {
+function ProgressCard({ progress, challenge, members, dailyEntries, currentUserId, onInviteFriend }) {
+  const visibleMembers = members?.length ? members : []
+
   return (
     <section className="progress-card">
       <div className="progress-head">
@@ -848,6 +998,19 @@ function ProgressCard({ progress, challenge }) {
       <p className="progress-caption">
         {progress.done} из {progress.total} целей закрыто сегодня.
       </p>
+      <div className="progress-actions">
+        <button type="button" onClick={onInviteFriend}>Пригласить друга</button>
+      </div>
+      {visibleMembers.length > 1 && (
+        <div className="member-scoreboard">
+          {visibleMembers.map((member) => (
+            <div key={member.user_id}>
+              <span>{getMemberName(member, currentUserId)}</span>
+              <strong>{getMemberTodayPercent(member.user_id, dailyEntries, challenge)}%</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -911,6 +1074,27 @@ function TimeGoalRow({ goal, onChange }) {
       </select>
       <span className={`check-button status ${done ? 'done' : ''}`} aria-label="Статус цели" />
     </article>
+  )
+}
+
+function InviteScreen({ invite, appError, onAccept, onDecline }) {
+  return (
+    <section className="screen">
+      <div className="hero-card">
+        <p className="eyebrow">Приглашение</p>
+        <h2>Присоединиться к челленджу?</h2>
+        <p>
+          {invite?.challenge_title
+            ? `Тебя пригласили в челлендж «${invite.challenge_title}». После входа вы будете видеть прогресс друг друга.`
+            : 'Тебя пригласили в совместный челлендж. После входа вы будете видеть прогресс друг друга.'}
+        </p>
+      </div>
+      <div className="surface invite-panel">
+        {appError && <p className="form-error">{appError}</p>}
+        <button className="primary-button" type="button" onClick={onAccept}>Присоединиться</button>
+        <button className="ghost-button" type="button" onClick={onDecline}>Не сейчас</button>
+      </div>
+    </section>
   )
 }
 
@@ -1574,6 +1758,56 @@ function normalizeChallenge(challenge, activeChallengeId) {
   }
 }
 
+function getMemberName(member, currentUserId) {
+  if (member.user_id === currentUserId) return 'Ты'
+  const profile = member.profiles
+  if (profile?.display_name) return profile.display_name
+  if (profile?.telegram_username) return `@${profile.telegram_username}`
+  return profile?.email?.split('@')[0] || 'Участник'
+}
+
+function getMemberTodayPercent(userId, entries, challenge) {
+  const today = getTodayDate()
+  const todayEntries = entries.filter((entry) => entry.user_id === userId && entry.entry_date === today)
+  const totalGoals = Number(challenge?.total_goals || 0)
+  if (!totalGoals) return 0
+  const completed = todayEntries.filter((entry) => entry.is_completed).length
+  return Math.round((completed / totalGoals) * 100)
+}
+
+function getInitialInviteToken() {
+  if (typeof window === 'undefined') return ''
+  const params = new URLSearchParams(window.location.search)
+  const directToken = params.get('invite')
+  if (directToken) return directToken
+
+  const startApp = params.get('tgWebAppStartParam') || params.get('startapp')
+  return normalizeInviteToken(startApp)
+}
+
+function normalizeInviteToken(value) {
+  if (!value) return ''
+  return value.startsWith('invite_') ? value.slice('invite_'.length) : ''
+}
+
+function clearInviteFromUrl() {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  url.searchParams.delete('invite')
+  url.searchParams.delete('tgWebAppStartParam')
+  url.searchParams.delete('startapp')
+  window.history.replaceState({}, '', url)
+}
+
+function buildInviteLink(token) {
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'evstigney_challenge_bot'
+  if (botUsername) return `https://t.me/${botUsername}?startapp=invite_${token}`
+
+  const url = new URL(window.location.origin)
+  url.searchParams.set('invite', token)
+  return url.toString()
+}
+
 function ListIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1655,6 +1889,7 @@ function getTelegramContext() {
   const webApp = getTelegramWebApp()
   const isTelegram = Boolean(webApp?.initData)
   const user = webApp?.initDataUnsafe?.user
+  const startParam = webApp?.initDataUnsafe?.start_param || ''
   const userName = user
     ? user.username
       ? `@${user.username}`
@@ -1664,6 +1899,7 @@ function getTelegramContext() {
   return {
     isTelegram,
     initData: isTelegram ? webApp.initData : '',
+    inviteToken: isTelegram ? normalizeInviteToken(startParam) : '',
     userName,
     userPhotoUrl: isTelegram ? user?.photo_url || '' : '',
     webApp: isTelegram ? webApp : null,

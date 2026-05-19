@@ -304,6 +304,44 @@
   background: linear-gradient(90deg, #60a5fa, #9fe1be);
 }
 
+.progress-actions {
+  display: flex;
+}
+
+.progress-actions button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, .1);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.member-scoreboard {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.member-scoreboard div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, .72);
+  background: rgba(255, 255, 255, .08);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.member-scoreboard strong {
+  color: #fff;
+}
+
 .surface,
 .goal-list,
 .analytics-goal-list {
@@ -372,6 +410,17 @@
   line-height: 1.4;
 }
 
+.success-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #20704f;
+  background: #e9f6ef;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .muted-state {
   margin: 0;
   padding: 12px 4px;
@@ -389,6 +438,21 @@
   background: #16784f;
   font-size: 13px;
   font-weight: 900;
+}
+
+.ghost-button {
+  min-height: 42px;
+  border: 1px solid #e2e8e4;
+  border-radius: 12px;
+  color: #111816;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.invite-panel {
+  display: grid;
+  gap: 10px;
 }
 
 .auth-toggle {
