@@ -121,16 +121,6 @@ function App() {
       .then(async (session) => {
         if (!isMounted) return
 
-        if (session?.user) {
-          setUserId(session.user.id)
-          setUserEmail(session.user.email || '')
-          setIsAuthed(true)
-          await markUserSeen(session.user.id)
-          const nextChallenges = await loadChallenges(session.user.id, session.user.email || '')
-          routeAfterLoad(nextChallenges)
-          return
-        }
-
         if (telegramContext.isTelegram && telegramContext.initData) {
           const telegramPayload = await signInWithTelegram(telegramContext.initData)
           const telegramUser = telegramPayload.session.user
@@ -141,6 +131,17 @@ function App() {
           await markUserSeen(telegramUser.id)
           const nextChallenges = await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           routeAfterLoad(nextChallenges)
+          return
+        }
+
+        if (session?.user) {
+          setUserId(session.user.id)
+          setUserEmail(session.user.email || '')
+          setIsAuthed(true)
+          await markUserSeen(session.user.id)
+          const nextChallenges = await loadChallenges(session.user.id, session.user.email || '')
+          routeAfterLoad(nextChallenges)
+          return
         }
       })
       .catch((error) => {
