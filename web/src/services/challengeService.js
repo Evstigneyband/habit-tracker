@@ -114,9 +114,7 @@ async function ensureChallengeOwnerMember({ challengeId, userId }) {
       { onConflict: 'challenge_id,user_id', ignoreDuplicates: true },
     )
 
-  if (error) {
-    console.warn('Could not create owner membership:', error)
-  }
+  if (error) throw error
 }
 
 export async function setLastActiveChallenge(userId, challengeId) {

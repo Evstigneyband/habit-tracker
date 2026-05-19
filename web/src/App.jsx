@@ -1877,7 +1877,7 @@ function clearInviteFromUrl() {
 
 function buildInviteLink(token) {
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'evstigney_challenge_bot'
-  if (botUsername) return `https://t.me/${botUsername}?startapp=invite_${token}`
+  if (botUsername) return `https://t.me/${botUsername}?start=invite_${token}`
 
   return buildDirectInviteLink(token)
 }
