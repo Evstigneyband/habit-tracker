@@ -158,6 +158,28 @@ function App() {
   }, [telegramContext])
 
   useEffect(() => {
+    const syncInviteToken = () => {
+      const nextToken = getCurrentInviteToken(telegramContext)
+      if (nextToken && nextToken !== inviteToken) {
+        setInviteToken(nextToken)
+      }
+    }
+
+    syncInviteToken()
+    window.addEventListener('focus', syncInviteToken)
+    window.addEventListener('pageshow', syncInviteToken)
+    window.addEventListener('popstate', syncInviteToken)
+    window.addEventListener('hashchange', syncInviteToken)
+
+    return () => {
+      window.removeEventListener('focus', syncInviteToken)
+      window.removeEventListener('pageshow', syncInviteToken)
+      window.removeEventListener('popstate', syncInviteToken)
+      window.removeEventListener('hashchange', syncInviteToken)
+    }
+  }, [inviteToken, telegramContext])
+
+  useEffect(() => {
     if (!activeChallengeId) {
       return
     }
@@ -561,7 +583,7 @@ function App() {
       })
       const inviteLink = buildInviteLink(invite.token)
       const fallbackInviteLink = buildDirectInviteLink(invite.token)
-      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.\n\nЕсли приглашение не открылось сразу, нажми эту ссылку: ${fallbackInviteLink}`
+      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.\n\nОткрой через Telegram: ${inviteLink}\n\nЕсли входишь через email, можно открыть так: ${fallbackInviteLink}`
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`
 
       if (telegramContext.webApp?.openTelegramLink) {
@@ -1780,6 +1802,10 @@ function getMemberTodayPercent(userId, entries, challenge) {
   if (!totalGoals) return 0
   const completed = todayEntries.filter((entry) => entry.is_completed).length
   return Math.round((completed / totalGoals) * 100)
+}
+
+function getCurrentInviteToken(telegramContext = null) {
+  return normalizeInviteToken(telegramContext?.webApp?.initDataUnsafe?.start_param) || getInitialInviteToken()
 }
 
 function getInitialInviteToken() {
