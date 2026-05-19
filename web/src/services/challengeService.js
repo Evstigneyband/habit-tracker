@@ -17,7 +17,10 @@ export async function getUserChallenges(userId) {
     .eq('user_id', userId)
     .eq('status', 'active')
 
-  if (memberError && memberError.code !== '42P01') throw memberError
+  if (memberError) {
+    console.warn('Could not load shared challenges:', memberError)
+    return ownChallenges || []
+  }
 
   const sharedChallenges = (memberRows || [])
     .map((row) => row.challenges)
@@ -111,7 +114,9 @@ async function ensureChallengeOwnerMember({ challengeId, userId }) {
       { onConflict: 'challenge_id,user_id', ignoreDuplicates: true },
     )
 
-  if (error && error.code !== '42P01') throw error
+  if (error) {
+    console.warn('Could not create owner membership:', error)
+  }
 }
 
 export async function setLastActiveChallenge(userId, challengeId) {
@@ -295,8 +300,10 @@ export async function getChallengeMembers(challengeId) {
     .eq('status', 'active')
     .order('joined_at', { ascending: true })
 
-  if (error && error.code === '42P01') return []
-  if (error) throw error
+  if (error) {
+    console.warn('Could not load challenge members:', error)
+    return []
+  }
   return data || []
 }
 
