@@ -430,6 +430,15 @@ export async function joinChallengeInvite({ token, userId }) {
   return data
 }
 
+export async function clearPendingInvite(token) {
+  try {
+    return await callAuthedApi('/api/clear-pending-invite', { token })
+  } catch (error) {
+    console.warn('Could not clear pending invite:', error)
+    return null
+  }
+}
+
 export async function saveDailyEntry({
   challengeId,
   goal,

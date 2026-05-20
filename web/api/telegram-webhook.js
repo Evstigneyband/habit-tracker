@@ -1,8 +1,11 @@
 /* global process */
+import { createClient } from '@supabase/supabase-js'
 
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
 const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || ''
 const appUrl = process.env.PUBLIC_APP_URL || process.env.VITE_PUBLIC_APP_URL || 'https://habit-tracker-black-theta.vercel.app'
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -20,6 +23,7 @@ export default async function handler(request, response) {
   const update = request.body || {}
   const message = update.message || update.edited_message
   const chatId = message?.chat?.id
+  const telegramUserId = message?.from?.id || chatId
   const text = String(message?.text || '').trim()
 
   if (!chatId || !text.startsWith('/start')) {
@@ -40,6 +44,12 @@ export default async function handler(request, response) {
     return response.status(200).json({ ok: true })
   }
 
+  await savePendingInvite({
+    telegramId: telegramUserId,
+    chatId,
+    token: inviteToken,
+  })
+
   const inviteUrl = new URL(appUrl)
   inviteUrl.searchParams.set('invite', inviteToken)
 
@@ -52,6 +62,34 @@ export default async function handler(request, response) {
   })
 
   return response.status(200).json({ ok: true })
+}
+
+async function savePendingInvite({ telegramId, chatId, token }) {
+  if (!supabaseUrl || !supabaseServiceRoleKey || !telegramId || !token) return
+
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+
+  const { error } = await supabase
+    .from('telegram_pending_invites')
+    .upsert(
+      {
+        telegram_id: telegramId,
+        chat_id: chatId,
+        invite_token: token,
+        status: 'pending',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'telegram_id' },
+    )
+
+  if (error) {
+    console.warn('Could not save pending Telegram invite:', error)
+  }
 }
 
 function normalizeInvitePayload(value) {

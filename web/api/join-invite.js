@@ -49,6 +49,8 @@ export default async function handler(request, response) {
 
     if (memberError) throw memberError
 
+    await clearPendingInviteForUser(supabase, user.id, token)
+
     const { data: challenge, error: challengeError } = await supabase
       .from('challenges')
       .select('*')
@@ -62,6 +64,28 @@ export default async function handler(request, response) {
     console.error('Join invite API error:', error)
     return response.status(500).json({ error: formatServerError(error) })
   }
+}
+
+async function clearPendingInviteForUser(supabase, userId, token) {
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('telegram_id')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError || !profile?.telegram_id) return
+
+  const { error } = await supabase
+    .from('telegram_pending_invites')
+    .update({
+      status: 'accepted',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('telegram_id', profile.telegram_id)
+    .eq('invite_token', token)
+    .eq('status', 'pending')
+
+  if (error) console.warn('Could not clear accepted Telegram invite:', error)
 }
 
 async function getRequestUser(request) {

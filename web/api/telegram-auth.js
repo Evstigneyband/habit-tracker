@@ -101,6 +101,8 @@ export default async function handler(request, response) {
       )
     }
 
+    const pendingInviteToken = await findPendingInviteToken(serviceClient, telegramUser.id)
+
     const { data: sessionData, error: signInError } = await anonClient.auth.signInWithPassword({
       email: signInEmail,
       password,
@@ -122,6 +124,7 @@ export default async function handler(request, response) {
         telegramId: telegramUser.id,
         telegramUsername: telegramUser.username || null,
         photoUrl: telegramUser.photo_url || null,
+        pendingInviteToken,
       },
     })
   } catch (error) {
@@ -132,6 +135,25 @@ export default async function handler(request, response) {
       error: payload.error,
     })
   }
+}
+
+async function findPendingInviteToken(supabase, telegramId) {
+  const { data, error } = await supabase
+    .from('telegram_pending_invites')
+    .select('invite_token, status, expires_at')
+    .eq('telegram_id', telegramId)
+    .eq('status', 'pending')
+    .maybeSingle()
+
+  if (error) {
+    if (String(error.message || '').includes('telegram_pending_invites')) return ''
+    console.warn('Could not load pending Telegram invite:', error)
+    return ''
+  }
+
+  if (!data?.invite_token) return ''
+  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) return ''
+  return data.invite_token
 }
 
 function verifyTelegramInitData(initData, botToken) {

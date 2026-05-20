@@ -92,11 +92,23 @@ create table if not exists public.telegram_reminders (
   unique (user_id, reminder_type, reminder_date)
 );
 
+create table if not exists public.telegram_pending_invites (
+  id uuid primary key default gen_random_uuid(),
+  telegram_id bigint not null unique,
+  chat_id bigint,
+  invite_token text not null,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'declined')),
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.challenges enable row level security;
 alter table public.goals enable row level security;
 alter table public.daily_entries enable row level security;
 alter table public.telegram_reminders enable row level security;
+alter table public.telegram_pending_invites enable row level security;
 
 grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on public.profiles to authenticated;
@@ -109,6 +121,7 @@ grant select, insert, update, delete on public.challenges to service_role;
 grant select, insert, update, delete on public.goals to service_role;
 grant select, insert, update, delete on public.daily_entries to service_role;
 grant select, insert, update, delete on public.telegram_reminders to service_role;
+grant select, insert, update, delete on public.telegram_pending_invites to service_role;
 
 do $$
 begin
@@ -147,6 +160,11 @@ create policy "Users can manage own entries"
 create policy "Users can read own reminders"
   on public.telegram_reminders for select
   using (auth.uid() = user_id);
+
+create policy "Service role manages Telegram pending invites"
+  on public.telegram_pending_invites for all
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');
 
 create or replace function public.handle_new_user()
 returns trigger

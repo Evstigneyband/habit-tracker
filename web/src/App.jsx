@@ -4,6 +4,7 @@ import { supabase } from './lib/supabaseClient'
 import {
   createChallenge,
   createChallengeInvite,
+  clearPendingInvite,
   deleteChallenge,
   getChallengeEntries,
   getChallengeGoals,
@@ -125,12 +126,18 @@ function App() {
         if (telegramContext.isTelegram && telegramContext.initData) {
           const telegramPayload = await signInWithTelegram(telegramContext.initData)
           const telegramUser = telegramPayload.session.user
+          const pendingInviteToken = normalizeInviteToken(telegramPayload.profile?.pendingInviteToken)
 
           setUserId(telegramUser.id)
           setUserEmail(telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
           setIsAuthed(true)
           await markUserSeen(telegramUser.id)
           const nextChallenges = await loadChallenges(telegramUser.id, telegramPayload.profile?.displayName || telegramContext.userName || 'Telegram')
+          if (pendingInviteToken) {
+            setInviteToken(pendingInviteToken)
+            navigate('invite')
+            return
+          }
           routeAfterLoad(nextChallenges)
           return
         }
@@ -652,10 +659,12 @@ function App() {
     }
   }
 
-  function handleDeclineInvite() {
+  async function handleDeclineInvite() {
+    const token = inviteToken
     setInviteToken('')
     setInviteDetails(null)
     clearInviteFromUrl()
+    if (token) await clearPendingInvite(token)
     navigateAfterChallengesLoad(challenges)
   }
 
