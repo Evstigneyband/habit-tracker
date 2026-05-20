@@ -42,7 +42,6 @@ function App() {
   const [inviteToken, setInviteToken] = useState(() => (telegramContext.isTelegram ? '' : getInitialInviteToken()))
   const [inviteDetails, setInviteDetails] = useState(null)
   const [inviteAction, setInviteAction] = useState('')
-  const [inviteMessage, setInviteMessage] = useState('')
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
@@ -356,7 +355,6 @@ function App() {
     setChallengeMembers([])
     setInviteToken('')
     setInviteDetails(null)
-    setInviteMessage('')
     setIsAuthed(false)
     setAuthMode('login')
     navigate('auth')
@@ -676,8 +674,6 @@ function App() {
   async function handleInviteForChallenge(challenge) {
     if (!challenge) return
     setAppError('')
-    setInviteMessage('')
-
     try {
       const invite = await createChallengeInvite({
         challengeId: challenge.id,
@@ -697,18 +693,15 @@ function App() {
 
       if (telegramContext.webApp?.openTelegramLink) {
         telegramContext.webApp.openTelegramLink(shareUrl)
-        setInviteMessage('Открыл окно Telegram, чтобы отправить приглашение другу.')
         return
       }
 
       if (navigator.share) {
         await navigator.share({ title: 'Твой челлендж', text: shareText, url: inviteLink })
-        setInviteMessage('Приглашение готово к отправке.')
         return
       }
 
       await navigator.clipboard.writeText(`${shareText}\n\n${inviteLink}`)
-      setInviteMessage('Ссылка приглашения скопирована.')
     } catch (error) {
       console.error('Invite error:', error)
       setAppError(formatAppError(error))
@@ -890,7 +883,6 @@ function App() {
           members={challengeMembers}
           dailyEntries={dailyEntries}
           currentUserId={userId}
-          inviteMessage={inviteMessage}
           onToggleSimple={toggleSimpleGoal}
           onSetTime={setTimeGoal}
         />
@@ -1151,7 +1143,6 @@ function TodayScreen({
   members,
   dailyEntries,
   currentUserId,
-  inviteMessage,
   onToggleSimple,
   onSetTime,
 }) {
@@ -1180,7 +1171,6 @@ function TodayScreen({
         dailyEntries={dailyEntries}
         currentUserId={currentUserId}
       />
-      {inviteMessage && <p className="success-note">{inviteMessage}</p>}
       {appError && <p className="form-error">{appError}</p>}
       {isLoadingGoals && <p className="muted-state">Загружаю цели...</p>}
 
