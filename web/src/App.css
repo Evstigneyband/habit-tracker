@@ -152,6 +152,23 @@
   line-height: 1.1;
 }
 
+.secret-trigger {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.secret-photo {
+  width: min(86vw, 420px);
+  max-height: 82vh;
+  display: block;
+  object-fit: contain;
+  border-radius: 22px;
+  box-shadow: 0 28px 80px rgba(8, 18, 14, .32);
+}
+
 .platform-state {
   display: flex;
   align-items: center;

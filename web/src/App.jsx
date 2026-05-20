@@ -867,7 +867,33 @@ function App() {
 
 function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext, challenge, members = [], currentUserId, children }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSecretTaps, setSettingsSecretTaps] = useState(0)
+  const [isSecretPhotoOpen, setIsSecretPhotoOpen] = useState(false)
   const isSharedChallenge = Boolean(challenge && members.length > 1)
+
+  function openSettings() {
+    setSettingsSecretTaps(0)
+    setIsSecretPhotoOpen(false)
+    setSettingsOpen(true)
+  }
+
+  function closeSettings() {
+    setSettingsOpen(false)
+    setSettingsSecretTaps(0)
+    setIsSecretPhotoOpen(false)
+  }
+
+  function handleSecretTap() {
+    setSettingsSecretTaps((current) => {
+      const next = current + 1
+      if (next >= 5) {
+        setIsSecretPhotoOpen(true)
+        return 0
+      }
+
+      return next
+    })
+  }
 
   return (
     <main className={`app-shell ${telegramContext.isTelegram ? 'telegram-mode' : ''}`}>
@@ -886,7 +912,7 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
             </div>
           </div>
           {showMenu && (
-            <button className="settings-button" type="button" onClick={() => setSettingsOpen(true)} aria-label="Настройки">
+            <button className="settings-button" type="button" onClick={openSettings} aria-label="Настройки">
               <SettingsIcon />
             </button>
           )}
@@ -895,24 +921,36 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
         {children}
 
         {settingsOpen && (
-          <div className="modal-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-            <section className="settings-modal" role="dialog" aria-modal="true" aria-label="Настройки" onClick={(event) => event.stopPropagation()}>
-              <button className="modal-close" type="button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть">
-                <CloseIcon />
-              </button>
-              <p className="eyebrow">Разработка</p>
-              <h2>EVSTIGNEY production</h2>
-              <div className="platform-state">
-                <span>Режим</span>
-                <strong>{telegramContext.isTelegram ? 'Telegram Mini App' : 'Web'}</strong>
-              </div>
-              {telegramContext.userName && (
+          <div className="modal-backdrop" role="presentation" onClick={closeSettings}>
+            {isSecretPhotoOpen ? (
+              <img
+                className="secret-photo"
+                src="/easter-ruslan-masha.png"
+                alt="Руслан и Маша"
+                onClick={(event) => event.stopPropagation()}
+              />
+            ) : (
+              <section className="settings-modal" role="dialog" aria-modal="true" aria-label="Настройки" onClick={(event) => event.stopPropagation()}>
+                <button className="modal-close" type="button" onClick={closeSettings} aria-label="Закрыть">
+                  <CloseIcon />
+                </button>
+                <p className="eyebrow">Разработка</p>
+                <h2>
+                  <button className="secret-trigger" type="button" onClick={handleSecretTap}>EVSTIGNEY</button>
+                  {' '}production
+                </h2>
                 <div className="platform-state">
-                  <span>Telegram</span>
-                  <strong>{telegramContext.userName}</strong>
+                  <span>Режим</span>
+                  <strong>{telegramContext.isTelegram ? 'Telegram Mini App' : 'Web'}</strong>
                 </div>
-              )}
-            </section>
+                {telegramContext.userName && (
+                  <div className="platform-state">
+                    <span>Telegram</span>
+                    <strong>{telegramContext.userName}</strong>
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )}
 
