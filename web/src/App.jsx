@@ -283,7 +283,7 @@ function App() {
     const total = simpleGoals.length + timeGoals.length
     const done = simpleDone + timeDone
     const todayPercent = total ? Math.round((done / total) * 100) : 0
-    const analytics = buildAnalytics(activeChallenge, rawGoals, dailyEntries, total)
+    const analytics = buildAnalytics(activeChallenge, rawGoals, filterEntriesByUser(dailyEntries, userId), total)
 
     return {
       done,
@@ -291,7 +291,7 @@ function App() {
       todayPercent,
       overallPercent: analytics.overallPercent,
     }
-  }, [activeChallenge, dailyEntries, rawGoals, simpleGoals, timeGoals])
+  }, [activeChallenge, dailyEntries, rawGoals, simpleGoals, timeGoals, userId])
 
   function navigate(nextScreen) {
     if (nextScreen !== 'create') setEditingChallenge(null)
@@ -779,6 +779,9 @@ function App() {
       navigate={navigate}
       logout={logout}
       telegramContext={telegramContext}
+      challenge={activeChallenge}
+      members={challengeMembers}
+      currentUserId={userId}
     >
       {screen === 'today' && (
         <TodayScreen
@@ -815,6 +818,8 @@ function App() {
           goals={rawGoals}
           dailyEntries={dailyEntries}
           totalGoals={simpleGoals.length + timeGoals.length}
+          members={challengeMembers}
+          currentUserId={userId}
         />
       )}
       {screen === 'create' && (
@@ -837,15 +842,21 @@ function App() {
   )
 }
 
-function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext, children }) {
+function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext, challenge, members = [], currentUserId, children }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const isSharedChallenge = Boolean(challenge && members.length > 1)
 
   return (
     <main className={`app-shell ${telegramContext.isTelegram ? 'telegram-mode' : ''}`}>
       <div className="phone-shell">
         <header className="topbar">
           <div className="brand">
-            <BrandMark telegramContext={telegramContext} />
+            <BrandMark
+              telegramContext={telegramContext}
+              members={members}
+              currentUserId={currentUserId}
+              isShared={isSharedChallenge}
+            />
             <div>
               <h1>Твой челлендж</h1>
               <p>{caption}</p>
@@ -903,9 +914,25 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
   )
 }
 
-function BrandMark({ telegramContext }) {
+function BrandMark({ telegramContext, members = [], currentUserId, isShared = false }) {
   const [avatarFailed, setAvatarFailed] = useState(false)
   const avatarUrl = telegramContext.isTelegram && !avatarFailed ? telegramContext.userPhotoUrl : ''
+
+  if (isShared) {
+    return (
+      <div className="brand-avatar-stack" aria-label="Участники челленджа">
+        {orderMembers(members, currentUserId).slice(0, 2).map((member, index) => (
+          <MemberAvatar
+            key={member.user_id}
+            member={member}
+            currentUserId={currentUserId}
+            telegramContext={telegramContext}
+            compact={index > 0}
+          />
+        ))}
+      </div>
+    )
+  }
 
   if (avatarUrl) {
     return (
@@ -1003,6 +1030,8 @@ function TodayScreen({
     )
   }
 
+  const collaboratorMembers = orderMembers(members, currentUserId).filter((member) => member.user_id !== currentUserId)
+
   return (
     <section className="screen">
       <ProgressCard
@@ -1022,14 +1051,26 @@ function TodayScreen({
           <GoalSection title="Простые цели">
             {simpleGoals.length === 0 && <EmptyGoalState>Простых целей пока нет.</EmptyGoalState>}
             {simpleGoals.map((goal) => (
-              <SimpleGoalRow key={goal.id} goal={goal} onToggle={() => onToggleSimple(goal.id)} />
+              <SimpleGoalRow
+                key={goal.id}
+                goal={goal}
+                collaboratorStatuses={getGoalMemberStatuses(goal.id, collaboratorMembers, dailyEntries)}
+                currentUserId={currentUserId}
+                onToggle={() => onToggleSimple(goal.id)}
+              />
             ))}
           </GoalSection>
 
           <GoalSection title="Цели по часам">
             {timeGoals.length === 0 && <EmptyGoalState>Целей по часам пока нет.</EmptyGoalState>}
             {timeGoals.map((goal) => (
-              <TimeGoalRow key={goal.id} goal={goal} onChange={(value) => onSetTime(goal.id, value)} />
+              <TimeGoalRow
+                key={goal.id}
+                goal={goal}
+                collaboratorStatuses={getGoalMemberStatuses(goal.id, collaboratorMembers, dailyEntries)}
+                currentUserId={currentUserId}
+                onChange={(value) => onSetTime(goal.id, value)}
+              />
             ))}
           </GoalSection>
         </>
@@ -1039,7 +1080,7 @@ function TodayScreen({
 }
 
 function ProgressCard({ progress, challenge, members, dailyEntries, currentUserId, onInviteFriend }) {
-  const visibleMembers = members?.length ? members : []
+  const visibleMembers = members?.length ? orderMembers(members, currentUserId) : []
 
   return (
     <section className="progress-card">
@@ -1103,19 +1144,22 @@ function EmptyGoalState({ children }) {
   return <p className="empty-goal-state">{children}</p>
 }
 
-function SimpleGoalRow({ goal, onToggle }) {
+function SimpleGoalRow({ goal, collaboratorStatuses = [], currentUserId, onToggle }) {
   return (
     <article className="goal-row">
       <span className="goal-icon">
         <HeartIcon />
       </span>
       <strong>{goal.title}</strong>
-      <button className={`check-button ${goal.done ? 'done' : ''}`} type="button" onClick={onToggle} aria-label="Отметить цель" />
+      <div className="goal-status-cluster">
+        <button className={`check-button ${goal.done ? 'done' : ''}`} type="button" onClick={onToggle} aria-label="Отметить цель" />
+        <MemberGoalStatuses statuses={collaboratorStatuses} currentUserId={currentUserId} />
+      </div>
     </article>
   )
 }
 
-function TimeGoalRow({ goal, onChange }) {
+function TimeGoalRow({ goal, collaboratorStatuses = [], currentUserId, onChange }) {
   const done = goal.actual >= goal.target
   return (
     <article className="goal-row time-row">
@@ -1133,8 +1177,30 @@ function TimeGoalRow({ goal, onChange }) {
           </option>
         ))}
       </select>
-      <span className={`check-button status ${done ? 'done' : ''}`} aria-label="Статус цели" />
+      <div className="goal-status-cluster">
+        <span className={`check-button status ${done ? 'done' : ''}`} aria-label="Статус цели" />
+        <MemberGoalStatuses statuses={collaboratorStatuses} currentUserId={currentUserId} />
+      </div>
     </article>
+  )
+}
+
+function MemberGoalStatuses({ statuses = [], currentUserId }) {
+  if (!statuses.length) return null
+
+  return (
+    <div className="member-goal-statuses" aria-label="Прогресс участников">
+      {statuses.map(({ member, done }) => (
+        <span
+          className={`member-goal-dot ${done ? 'done' : ''}`}
+          key={member.user_id}
+          title={`${getMemberName(member, currentUserId)}: ${done ? 'выполнено' : 'ждет отметки'}`}
+          aria-label={`${getMemberName(member, currentUserId)}: ${done ? 'выполнено' : 'ждет отметки'}`}
+        >
+          {getMemberInitial(member, currentUserId)}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -1274,6 +1340,7 @@ function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDe
           <span>
             {challenge.goals} целей. Старт: {challenge.startDate}
           </span>
+          {challenge.isShared && <em className="shared-badge">Совместный</em>}
         </div>
         <small>
           {challenge.day}/{challenge.days}
@@ -1283,11 +1350,20 @@ function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDe
   )
 }
 
-function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
-  const analytics = useMemo(
-    () => buildAnalytics(challenge, goals, dailyEntries, totalGoals),
-    [challenge, goals, dailyEntries, totalGoals],
-  )
+function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members = [], currentUserId }) {
+  const orderedMembers = useMemo(() => orderMembers(members, currentUserId), [members, currentUserId])
+  const analyticsByMember = useMemo(() => {
+    const participants = orderedMembers.length
+      ? orderedMembers
+      : [{ user_id: currentUserId, profiles: { display_name: 'Ты' } }]
+
+    return participants.map((member) => ({
+      member,
+      analytics: buildAnalytics(challenge, goals, filterEntriesByUser(dailyEntries, member.user_id), totalGoals),
+    }))
+  }, [challenge, currentUserId, dailyEntries, goals, orderedMembers, totalGoals])
+  const analytics = analyticsByMember[0]?.analytics || buildAnalytics(challenge, goals, [], totalGoals)
+  const isShared = analyticsByMember.length > 1
 
   return (
     <section className="screen">
@@ -1306,6 +1382,17 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
         <Metric value={String(analytics.lowDays)} label="Дней ниже 50%" />
       </div>
 
+      {isShared && (
+        <div className="member-analytics-strip">
+          {analyticsByMember.map(({ member, analytics: memberAnalytics }) => (
+            <div key={member.user_id}>
+              <span>{getMemberName(member, currentUserId)}</span>
+              <strong>{memberAnalytics.overallPercent}%</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
       <section className="goal-section">
         <h2>Календарь</h2>
         <div className="surface calendar-surface">
@@ -1316,7 +1403,20 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
                 key={day.day}
               >
                 <span>{day.day}</span>
-                <small>{day.future ? '' : `${day.percent}%`}</small>
+                {isShared ? (
+                  <div className="day-member-values">
+                    {analyticsByMember.map(({ member, analytics: memberAnalytics }) => {
+                      const memberDay = memberAnalytics.days.find((item) => item.day === day.day)
+                      return (
+                        <small key={member.user_id}>
+                          {getMemberInitial(member, currentUserId)} {memberDay?.future ? '' : `${memberDay?.percent || 0}%`}
+                        </small>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <small>{day.future ? '' : `${day.percent}%`}</small>
+                )}
               </div>
             ))}
           </div>
@@ -1326,22 +1426,37 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals }) {
       <section className="goal-section">
         <h2>Разбор по целям</h2>
         <div className="analytics-goal-list">
-          {analytics.goalStats.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
-          {analytics.goalStats.map((goal) => (
-            <article className="goal-row analytics-goal-row" key={goal.id}>
+          {goals.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
+          {goals.map((goal) => {
+            const goalLines = analyticsByMember.map(({ member, analytics: memberAnalytics }) => ({
+              member,
+              stat: memberAnalytics.goalStats.find((item) => item.id === goal.id),
+            }))
+
+            return (
+            <article className={`goal-row analytics-goal-row ${isShared ? 'shared' : ''}`} key={goal.id}>
               <span className="goal-icon">
-                {goal.goalType === 'time' ? <ClockIcon /> : <HeartIcon />}
+                {goal.goal_type === 'time' ? <ClockIcon /> : <HeartIcon />}
               </span>
               <div className="analytics-goal-copy">
                 <strong>{goal.title}</strong>
-                <span>{goal.meta}</span>
-                <div className="mini-track">
-                  <div className="mini-fill" style={{ width: `${goal.completionPercent}%` }} />
-                </div>
+                {goalLines.map(({ member, stat }) => (
+                  <div className="member-goal-line" key={member.user_id}>
+                    <div>
+                      <span>{getMemberName(member, currentUserId)}</span>
+                      <span>{stat?.completionPercent || 0}%</span>
+                    </div>
+                    <small>{stat?.meta || 'Пока нет данных'}</small>
+                    <div className="mini-track">
+                      <div className="mini-fill" style={{ width: `${stat?.completionPercent || 0}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span className="analytics-goal-percent">{goal.completionPercent}%</span>
+              {!isShared && <span className="analytics-goal-percent">{goalLines[0]?.stat?.completionPercent || 0}%</span>}
             </article>
-          ))}
+            )
+          })}
         </div>
       </section>
 
@@ -1816,6 +1931,7 @@ function normalizeChallenge(challenge, activeChallengeId) {
     goals: challenge.total_goals,
     startDate: formatDate(challenge.start_date),
     active: challenge.id === activeChallengeId,
+    isShared: Boolean(challenge.is_shared || Number(challenge.member_count || 0) > 1),
   }
 }
 
@@ -1825,6 +1941,58 @@ function getMemberName(member, currentUserId) {
   if (profile?.display_name) return profile.display_name
   if (profile?.telegram_username) return `@${profile.telegram_username}`
   return profile?.email?.split('@')[0] || 'Участник'
+}
+
+function getMemberInitial(member, currentUserId) {
+  return getMemberName(member, currentUserId).replace('@', '').trim().slice(0, 1).toUpperCase() || '?'
+}
+
+function orderMembers(members = [], currentUserId = '') {
+  return [...(members || [])].sort((left, right) => {
+    if (left.user_id === currentUserId) return -1
+    if (right.user_id === currentUserId) return 1
+    return new Date(left.joined_at || 0).getTime() - new Date(right.joined_at || 0).getTime()
+  })
+}
+
+function filterEntriesByUser(entries = [], userId = '') {
+  if (!userId) return []
+  return entries.filter((entry) => entry.user_id === userId)
+}
+
+function getGoalMemberStatuses(goalId, members = [], entries = []) {
+  const today = getTodayDate()
+  return members.map((member) => {
+    const entry = entries.find((item) => item.goal_id === goalId && item.user_id === member.user_id && item.entry_date === today)
+    return {
+      member,
+      done: Boolean(entry?.is_completed),
+    }
+  })
+}
+
+function MemberAvatar({ member, currentUserId, telegramContext, compact = false }) {
+  const [avatarFailed, setAvatarFailed] = useState(false)
+  const avatarUrl = member.user_id === currentUserId && telegramContext.isTelegram && !avatarFailed ? telegramContext.userPhotoUrl : ''
+
+  if (avatarUrl) {
+    return (
+      <img
+        className={`brand-avatar ${compact ? 'compact' : ''}`}
+        src={avatarUrl}
+        alt=""
+        aria-hidden="true"
+        referrerPolicy="no-referrer"
+        onError={() => setAvatarFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <span className={`brand-avatar brand-avatar-fallback ${compact ? 'compact' : ''}`} aria-hidden="true">
+      {getMemberInitial(member, currentUserId)}
+    </span>
+  )
 }
 
 function getMemberTodayPercent(userId, entries, challenge) {

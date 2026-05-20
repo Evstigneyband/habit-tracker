@@ -32,7 +32,34 @@ export async function getUserChallenges(userId) {
     byId.set(challenge.id, challenge)
   })
 
-  return Array.from(byId.values()).sort((left, right) => {
+  const challenges = Array.from(byId.values())
+  const challengeIds = challenges.map((challenge) => challenge.id)
+  const memberCounts = new Map()
+
+  if (challengeIds.length) {
+    const { data: membershipRows, error: membershipError } = await supabase
+      .from('challenge_members')
+      .select('challenge_id, user_id, status')
+      .in('challenge_id', challengeIds)
+      .eq('status', 'active')
+
+    if (!membershipError) {
+      ;(membershipRows || []).forEach((row) => {
+        memberCounts.set(row.challenge_id, (memberCounts.get(row.challenge_id) || 0) + 1)
+      })
+    } else {
+      console.warn('Could not load challenge member counts:', membershipError)
+    }
+  }
+
+  return challenges.map((challenge) => {
+    const memberCount = memberCounts.get(challenge.id) || 1
+    return {
+      ...challenge,
+      member_count: memberCount,
+      is_shared: memberCount > 1 || challenge.user_id !== userId,
+    }
+  }).sort((left, right) => {
     return new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
   })
 }
