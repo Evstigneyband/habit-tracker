@@ -45,6 +45,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
+  const handledInviteTokensRef = useRef(new Set())
   const [editingChallenge, setEditingChallenge] = useState(null)
 
   useEffect(() => {
@@ -106,7 +107,7 @@ function App() {
     const cleanupTelegram = setupTelegramWebApp(telegramContext)
     let isMounted = true
     const routeAfterLoad = (nextChallenges) => {
-      if (inviteToken) {
+      if (shouldShowInvite(inviteToken)) {
         navigate('invite')
         return
       }
@@ -169,7 +170,7 @@ function App() {
   useEffect(() => {
     const syncInviteToken = () => {
       const nextToken = getCurrentInviteToken(telegramContext)
-      if (nextToken && nextToken !== inviteToken) {
+      if (nextToken && nextToken !== inviteToken && !handledInviteTokensRef.current.has(nextToken)) {
         setInviteToken(nextToken)
       }
     }
@@ -197,7 +198,7 @@ function App() {
   }, [activeChallengeId])
 
   useEffect(() => {
-    if (!isAuthed || !inviteToken) return
+    if (!isAuthed || !shouldShowInvite(inviteToken)) return
     navigate('invite')
   }, [inviteToken, isAuthed])
 
@@ -385,8 +386,12 @@ function App() {
     }
   }
 
-  function navigateAfterChallengesLoad(nextChallenges) {
-    if (inviteToken) {
+  function shouldShowInvite(token) {
+    return Boolean(token && !handledInviteTokensRef.current.has(token))
+  }
+
+  function navigateAfterChallengesLoad(nextChallenges, options = {}) {
+    if (!options.ignoreInvite && shouldShowInvite(inviteToken)) {
       navigate('invite')
       return
     }
@@ -644,6 +649,7 @@ function App() {
 
     try {
       const joinedChallenge = await joinChallengeInvite({ token: inviteToken, userId })
+      handledInviteTokensRef.current.add(inviteToken)
       setInviteToken('')
       clearInviteFromUrl()
       const nextChallenges = await loadChallenges(userId, userEmail)
@@ -671,10 +677,11 @@ function App() {
     setInviteAction('declining')
 
     try {
+      if (token) handledInviteTokensRef.current.add(token)
       if (token) await clearPendingInvite(token)
       setInviteToken('')
       clearInviteFromUrl()
-      navigateAfterChallengesLoad(challenges)
+      navigateAfterChallengesLoad(challenges, { ignoreInvite: true })
       setInviteDetails(null)
     } catch (error) {
       console.error('Invite decline error:', error)
