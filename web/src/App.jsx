@@ -40,6 +40,7 @@ function App() {
   const [challengeMembers, setChallengeMembers] = useState([])
   const [inviteToken, setInviteToken] = useState(() => telegramContext.inviteToken || getInitialInviteToken())
   const [inviteDetails, setInviteDetails] = useState(null)
+  const [inviteAction, setInviteAction] = useState('')
   const [inviteMessage, setInviteMessage] = useState('')
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
@@ -636,14 +637,14 @@ function App() {
   }
 
   async function handleAcceptInvite() {
-    if (!inviteToken) return
+    if (!inviteToken || inviteAction) return
 
     setAppError('')
+    setInviteAction('accepting')
 
     try {
       const joinedChallenge = await joinChallengeInvite({ token: inviteToken, userId })
       setInviteToken('')
-      setInviteDetails(null)
       clearInviteFromUrl()
       const nextChallenges = await loadChallenges(userId, userEmail)
       setActiveChallengeId(joinedChallenge.id)
@@ -653,19 +654,34 @@ function App() {
       }
       await loadGoals(joinedChallenge.id)
       navigate('today')
+      setInviteDetails(null)
     } catch (error) {
       console.error('Invite accept error:', error)
       setAppError(formatAppError(error))
+    } finally {
+      setInviteAction('')
     }
   }
 
   async function handleDeclineInvite() {
+    if (inviteAction) return
+
     const token = inviteToken
-    setInviteToken('')
-    setInviteDetails(null)
-    clearInviteFromUrl()
-    if (token) await clearPendingInvite(token)
-    navigateAfterChallengesLoad(challenges)
+    setAppError('')
+    setInviteAction('declining')
+
+    try {
+      if (token) await clearPendingInvite(token)
+      setInviteToken('')
+      clearInviteFromUrl()
+      navigateAfterChallengesLoad(challenges)
+      setInviteDetails(null)
+    } catch (error) {
+      console.error('Invite decline error:', error)
+      setAppError(formatAppError(error))
+    } finally {
+      setInviteAction('')
+    }
   }
 
   async function toggleSimpleGoal(goalId) {
@@ -833,6 +849,7 @@ function App() {
         <InviteScreen
           invite={inviteDetails}
           appError={appError}
+          isBusy={Boolean(inviteAction)}
           onAccept={handleAcceptInvite}
           onDecline={handleDeclineInvite}
         />
@@ -1203,7 +1220,7 @@ function MemberGoalStatuses({ statuses = [], currentUserId }) {
   )
 }
 
-function InviteScreen({ invite, appError, onAccept, onDecline }) {
+function InviteScreen({ invite, appError, isBusy, onAccept, onDecline }) {
   return (
     <section className="screen">
       <div className="hero-card">
@@ -1215,10 +1232,10 @@ function InviteScreen({ invite, appError, onAccept, onDecline }) {
             : 'Тебя пригласили в совместный челлендж. После входа вы будете видеть прогресс друг друга.'}
         </p>
       </div>
-      <div className="surface invite-panel">
+      <div className="surface invite-panel" aria-busy={isBusy}>
         {appError && <p className="form-error">{appError}</p>}
-        <button className="primary-button" type="button" onClick={onAccept}>Присоединиться</button>
-        <button className="ghost-button" type="button" onClick={onDecline}>Не сейчас</button>
+        <button className="primary-button" type="button" onClick={onAccept} disabled={isBusy}>Присоединиться</button>
+        <button className="ghost-button" type="button" onClick={onDecline} disabled={isBusy}>Не сейчас</button>
       </div>
     </section>
   )
