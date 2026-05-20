@@ -337,6 +337,9 @@ export async function getChallengeInvite(token) {
 }
 
 export async function joinChallengeInvite({ token, userId }) {
+  const apiJoinedChallenge = await joinChallengeInviteViaApi(token)
+  if (apiJoinedChallenge) return apiJoinedChallenge
+
   const supabase = requireSupabase()
   const invite = await getChallengeInvite(token)
 
@@ -373,6 +376,17 @@ export async function saveDailyEntry({
   isChecked = false,
   actualHours = 0,
 }) {
+  const apiSavedEntry = await saveDailyEntryViaApi({
+    challengeId,
+    goalId: goal.id,
+    userId,
+    entryDate,
+    dayNumber,
+    isChecked,
+    actualHours,
+  })
+  if (apiSavedEntry) return apiSavedEntry
+
   const supabase = requireSupabase()
   const isTimeGoal = goal.goal_type === 'time'
   const targetHours = isTimeGoal ? Number(goal.target_hours || goal.target || 0) : null
@@ -429,4 +443,46 @@ export async function saveDailyEntry({
 
   if (error) throw error
   return data
+}
+
+async function joinChallengeInviteViaApi(token) {
+  try {
+    return await callAuthedApi('/api/join-invite', { token })
+  } catch (error) {
+    console.warn('Server invite join failed, trying client fallback:', error)
+    return null
+  }
+}
+
+async function saveDailyEntryViaApi(payload) {
+  try {
+    return await callAuthedApi('/api/save-entry', payload)
+  } catch (error) {
+    console.warn('Server entry save failed, trying client fallback:', error)
+    return null
+  }
+}
+
+async function callAuthedApi(path, payload) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('Нет активной сессии')
+
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(body.error || 'Server request failed')
+  }
+
+  return body.data
 }
