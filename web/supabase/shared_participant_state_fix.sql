@@ -3,9 +3,16 @@ alter table public.profiles add column if not exists photo_url text;
 do $$
 begin
   alter table public.daily_entries drop constraint if exists daily_entries_goal_id_entry_date_key;
-  alter table public.daily_entries add constraint daily_entries_goal_user_date_key unique (goal_id, user_id, entry_date);
-exception
-  when duplicate_object then null;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'daily_entries_goal_user_date_key'
+      and conrelid = 'public.daily_entries'::regclass
+  ) then
+    alter table public.daily_entries
+      add constraint daily_entries_goal_user_date_key unique (goal_id, user_id, entry_date);
+  end if;
 end $$;
 
 insert into public.challenge_members (challenge_id, user_id, role, status)

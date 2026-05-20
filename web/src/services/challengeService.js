@@ -318,28 +318,50 @@ export async function getChallengeEntries(challengeId) {
 
 export async function getChallengeMembers(challengeId) {
   const supabase = requireSupabase()
-  const { data, error } = await supabase
+  const { data: members, error } = await supabase
     .from('challenge_members')
-    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username, photo_url)')
+    .select('user_id, role, joined_at')
     .eq('challenge_id', challengeId)
     .eq('status', 'active')
     .order('joined_at', { ascending: true })
 
   if (error) {
-    if (String(error.message || '').includes('photo_url')) {
-      const fallback = await supabase
-        .from('challenge_members')
-        .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
-        .eq('challenge_id', challengeId)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true })
-
-      if (!fallback.error) return fallback.data || []
-    }
     console.warn('Could not load challenge members:', error)
     return []
   }
-  return data || []
+
+  const userIds = (members || []).map((member) => member.user_id).filter(Boolean)
+  if (userIds.length === 0) return []
+
+  const profiles = await getMemberProfiles(userIds)
+  const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]))
+
+  return (members || []).map((member) => ({
+    ...member,
+    profiles: profilesById.get(member.user_id) || null,
+  }))
+}
+
+async function getMemberProfiles(userIds) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, display_name, auth_provider, telegram_username, photo_url')
+    .in('id', userIds)
+
+  if (!error) return data || []
+
+  if (String(error.message || '').includes('photo_url')) {
+    const fallback = await supabase
+      .from('profiles')
+      .select('id, email, display_name, auth_provider, telegram_username')
+      .in('id', userIds)
+
+    if (!fallback.error) return fallback.data || []
+  }
+
+  console.warn('Could not load member profiles:', error)
+  return []
 }
 
 export async function getChallengeState(challengeId) {

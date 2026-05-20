@@ -85,22 +85,41 @@ export default async function handler(request, response) {
 }
 
 async function loadMembersWithProfiles(supabase, challengeId) {
-  const withPhoto = await supabase
+  const membersResult = await supabase
     .from('challenge_members')
-    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username, photo_url)')
+    .select('user_id, role, joined_at')
     .eq('challenge_id', challengeId)
     .eq('status', 'active')
     .order('joined_at', { ascending: true })
+
+  if (membersResult.error) throw membersResult.error
+
+  const members = membersResult.data || []
+  const userIds = members.map((member) => member.user_id).filter(Boolean)
+  if (userIds.length === 0) return []
+
+  const profilesResult = await loadProfiles(supabase, userIds)
+  const profilesById = new Map((profilesResult || []).map((profile) => [profile.id, profile]))
+
+  return members.map((member) => ({
+    ...member,
+    profiles: profilesById.get(member.user_id) || null,
+  }))
+}
+
+async function loadProfiles(supabase, userIds) {
+  const withPhoto = await supabase
+    .from('profiles')
+    .select('id, email, display_name, auth_provider, telegram_username, photo_url')
+    .in('id', userIds)
 
   if (!withPhoto.error) return withPhoto.data || []
   if (!String(withPhoto.error.message || '').includes('photo_url')) throw withPhoto.error
 
   const fallback = await supabase
-    .from('challenge_members')
-    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
-    .eq('challenge_id', challengeId)
-    .eq('status', 'active')
-    .order('joined_at', { ascending: true })
+    .from('profiles')
+    .select('id, email, display_name, auth_provider, telegram_username')
+    .in('id', userIds)
 
   if (fallback.error) throw fallback.error
   return fallback.data || []

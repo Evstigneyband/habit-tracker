@@ -43,7 +43,6 @@ function App() {
   const [authMode, setAuthMode] = useState('login')
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
-  const acceptingInviteRef = useRef('')
   const [editingChallenge, setEditingChallenge] = useState(null)
 
   useEffect(() => {
@@ -193,37 +192,6 @@ function App() {
     if (!isAuthed || !inviteToken) return
     navigate('invite')
   }, [inviteToken, isAuthed])
-
-  useEffect(() => {
-    if (!isAuthed || !userId || !inviteToken) return
-    if (acceptingInviteRef.current === inviteToken) return
-
-    acceptingInviteRef.current = inviteToken
-    setAppError('')
-    setInviteMessage('Присоединяем к челленджу...')
-
-    joinChallengeInvite({ token: inviteToken, userId })
-      .then(async (joinedChallenge) => {
-        setInviteDetails(null)
-        setInviteToken('')
-        clearInviteFromUrl()
-        const nextChallenges = await loadChallenges(userId, userEmail)
-        setActiveChallengeId(joinedChallenge.id)
-        await setLastActiveChallenge(userId, joinedChallenge.id)
-        if (!nextChallenges.some((challenge) => challenge.id === joinedChallenge.id)) {
-          setChallenges((current) => [joinedChallenge, ...current])
-        }
-        await loadGoals(joinedChallenge.id)
-        setInviteMessage('Ты присоединился к совместному челленджу.')
-        navigate('today')
-      })
-      .catch((error) => {
-        console.error('Auto invite accept error:', error)
-        acceptingInviteRef.current = ''
-        setInviteMessage('')
-        setAppError(formatAppError(error))
-      })
-  }, [inviteToken, isAuthed, userId, userEmail])
 
   useEffect(() => {
     activeChallengeIdRef.current = activeChallengeId
