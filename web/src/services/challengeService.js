@@ -332,6 +332,10 @@ export async function getChallengeMembers(challengeId) {
   return data || []
 }
 
+export async function getChallengeState(challengeId) {
+  return callAuthedApi('/api/challenge-state', { challengeId })
+}
+
 export async function createChallengeInvite({ challengeId, userId, challengeTitle }) {
   const supabase = requireSupabase()
   const token = crypto.randomUUID().replaceAll('-', '')

@@ -9,6 +9,7 @@ import {
   getChallengeGoals,
   getChallengeInvite,
   getChallengeMembers,
+  getChallengeState,
   getUserProfile,
   getUserChallenges,
   joinChallengeInvite,
@@ -486,15 +487,37 @@ function App() {
     setAppError('')
 
     try {
-      const [goals, entries, members] = await Promise.all([
-        getChallengeGoals(challengeId),
-        getChallengeEntries(challengeId),
-        getChallengeMembers(challengeId),
-      ])
+      const state = await getChallengeState(challengeId).catch(async (error) => {
+        console.warn('Server challenge state failed, trying client fallback:', error)
+        const [fallbackGoals, fallbackEntries, fallbackMembers] = await Promise.all([
+          getChallengeGoals(challengeId),
+          getChallengeEntries(challengeId),
+          getChallengeMembers(challengeId),
+        ])
+        return {
+          goals: fallbackGoals,
+          entries: fallbackEntries,
+          members: fallbackMembers,
+        }
+      })
+      const goals = state.goals || []
+      const entries = state.entries || []
+      const members = state.members || []
       const todayEntries = entries.filter((entry) => entry.entry_date === getTodayDate() && entry.user_id === userId)
       setRawGoals(goals)
       setDailyEntries(entries)
       setChallengeMembers(members)
+      setChallenges((currentChallenges) =>
+        currentChallenges.map((challenge) =>
+          challenge.id === challengeId
+            ? {
+                ...challenge,
+                member_count: Math.max(Number(challenge.member_count || 1), members.length || 1),
+                is_shared: members.length > 1 || challenge.is_shared,
+              }
+            : challenge,
+        ),
+      )
       setSimpleGoals(
         goals
           .filter((goal) => goal.goal_type === 'simple')
@@ -1427,7 +1450,22 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
         <h2>Разбор по целям</h2>
         <div className="analytics-goal-list">
           {goals.length === 0 && <p className="muted-state">Пока нет целей для анализа.</p>}
-          {goals.map((goal) => {
+          {!isShared && analytics.goalStats.map((goal) => (
+            <article className="goal-row analytics-goal-row" key={goal.id}>
+              <span className="goal-icon">
+                {goal.goalType === 'time' ? <ClockIcon /> : <HeartIcon />}
+              </span>
+              <div className="analytics-goal-copy">
+                <strong>{goal.title}</strong>
+                <span>{goal.meta}</span>
+                <div className="mini-track">
+                  <div className="mini-fill" style={{ width: `${goal.completionPercent}%` }} />
+                </div>
+              </div>
+              <span className="analytics-goal-percent">{goal.completionPercent}%</span>
+            </article>
+          ))}
+          {isShared && goals.map((goal) => {
             const goalLines = analyticsByMember.map(({ member, analytics: memberAnalytics }) => ({
               member,
               stat: memberAnalytics.goalStats.find((item) => item.id === goal.id),
@@ -1453,7 +1491,6 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
                   </div>
                 ))}
               </div>
-              {!isShared && <span className="analytics-goal-percent">{goalLines[0]?.stat?.completionPercent || 0}%</span>}
             </article>
             )
           })}
