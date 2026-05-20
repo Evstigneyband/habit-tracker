@@ -49,6 +49,15 @@ export default async function handler(request, response) {
 
     if (memberError) throw memberError
 
+    const { error: inviteUpdateError } = await supabase
+      .from('challenge_invites')
+      .update({
+        status: 'revoked',
+      })
+      .eq('id', invite.id)
+
+    if (inviteUpdateError) console.warn('Could not close accepted invite:', inviteUpdateError)
+
     await clearPendingInviteForUser(supabase, user.id, token)
 
     const { data: challenge, error: challengeError } = await supabase

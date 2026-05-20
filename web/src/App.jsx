@@ -6,6 +6,7 @@ import {
   createChallengeInvite,
   clearPendingInvite,
   deleteChallenge,
+  leaveChallenge,
   getChallengeEntries,
   getChallengeGoals,
   getChallengeInvite,
@@ -38,7 +39,7 @@ function App() {
   const [rawGoals, setRawGoals] = useState([])
   const [dailyEntries, setDailyEntries] = useState([])
   const [challengeMembers, setChallengeMembers] = useState([])
-  const [inviteToken, setInviteToken] = useState(() => telegramContext.inviteToken || getInitialInviteToken())
+  const [inviteToken, setInviteToken] = useState(() => (telegramContext.isTelegram ? '' : getInitialInviteToken()))
   const [inviteDetails, setInviteDetails] = useState(null)
   const [inviteAction, setInviteAction] = useState('')
   const [inviteMessage, setInviteMessage] = useState('')
@@ -140,6 +141,9 @@ function App() {
             navigate('invite')
             return
           }
+          if (telegramContext.inviteToken) {
+            handledInviteTokensRef.current.add(telegramContext.inviteToken)
+          }
           routeAfterLoad(nextChallenges)
           return
         }
@@ -169,6 +173,7 @@ function App() {
 
   useEffect(() => {
     const syncInviteToken = () => {
+      if (telegramContext.isTelegram) return
       const nextToken = getCurrentInviteToken(telegramContext)
       if (nextToken && nextToken !== inviteToken && !handledInviteTokensRef.current.has(nextToken)) {
         setInviteToken(nextToken)
@@ -254,6 +259,20 @@ function App() {
     () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
     [activeChallengeId, challenges],
   )
+
+  useEffect(() => {
+    if (!isAuthed || !userId || !activeChallengeId || !isChallengeWaitingForFriend(activeChallenge)) return undefined
+
+    const intervalId = window.setInterval(async () => {
+      const nextChallenges = await loadChallenges(userId, userEmail)
+      const refreshedChallenge = nextChallenges.find((challenge) => challenge.id === activeChallengeId)
+      if (refreshedChallenge && !isChallengeWaitingForFriend(refreshedChallenge)) {
+        await loadGoals(activeChallengeId, { silent: true })
+      }
+    }, 8000)
+
+    return () => window.clearInterval(intervalId)
+  }, [activeChallenge, activeChallengeId, isAuthed, userEmail, userId])
 
   const progress = useMemo(() => {
     const simpleDone = simpleGoals.filter((goal) => goal.done).length
@@ -463,6 +482,41 @@ function App() {
     }
   }
 
+  async function handleLeaveChallenge(challengeId) {
+    const challenge = challenges.find((item) => item.id === challengeId)
+    if (!challenge) return
+    if (!window.confirm(`Покинуть челлендж «${challenge.title}»?`)) return
+
+    setAppError('')
+
+    try {
+      await leaveChallenge({ userId, challengeId })
+      const nextChallenges = challenges.filter((item) => item.id !== challengeId)
+      setChallenges(nextChallenges)
+
+      if (challengeId === activeChallengeId) {
+        const nextActiveId = nextChallenges[0]?.id || ''
+        setActiveChallengeId(nextActiveId)
+        setSimpleGoals([])
+        setTimeGoals([])
+        setRawGoals([])
+        setDailyEntries([])
+        setChallengeMembers([])
+        await setLastActiveChallenge(userId, nextActiveId || null)
+        if (nextActiveId) {
+          await loadGoals(nextActiveId)
+          navigate('today')
+        } else {
+          setEditingChallenge(null)
+          navigate('create')
+        }
+      }
+    } catch (error) {
+      console.error('Leave challenge error:', error)
+      setAppError(formatAppError(error))
+    }
+  }
+
   async function loadGoals(challengeId, { silent = false } = {}) {
     if (!silent) setIsLoadingGoals(true)
     setAppError('')
@@ -491,11 +545,15 @@ function App() {
       setChallenges((currentChallenges) =>
         currentChallenges.map((challenge) =>
           challenge.id === challengeId
-            ? {
-                ...challenge,
-                member_count: Math.max(Number(challenge.member_count || 1), members.length || 1),
-                is_shared: members.length > 1 || challenge.is_shared,
-              }
+            ? (() => {
+                const memberCount = Math.max(Number(challenge.member_count || 1), members.length || 1)
+                return {
+                  ...challenge,
+                  member_count: memberCount,
+                  is_shared: memberCount > 1 || challenge.is_shared,
+                  pending_collaboration: memberCount > 1 ? false : challenge.pending_collaboration,
+                }
+              })()
             : challenge,
         ),
       )
@@ -541,7 +599,11 @@ function App() {
           timeGoals: payload.timeGoals,
         })
         setChallenges((current) =>
-          current.map((challenge) => (challenge.id === restartedChallenge.id ? restartedChallenge : challenge)),
+          current.map((challenge) =>
+            challenge.id === restartedChallenge.id
+              ? { ...restartedChallenge, user_role: 'owner', member_count: 1, pending_collaboration: false }
+              : challenge,
+          ),
         )
         setActiveChallengeId(restartedChallenge.id)
         setSimpleGoals([])
@@ -553,6 +615,7 @@ function App() {
         await setLastActiveChallenge(userId, restartedChallenge.id)
         await loadGoals(restartedChallenge.id)
         navigate('today')
+        if (payload.withFriend) await handleInviteForChallenge(restartedChallenge)
         return
       }
 
@@ -564,10 +627,12 @@ function App() {
         simpleGoals: payload.simpleGoals,
         timeGoals: payload.timeGoals,
       })
-      setChallenges((current) => [createdChallenge, ...current])
+      setChallenges((current) => [{ ...createdChallenge, user_role: 'owner', member_count: 1, pending_collaboration: false }, ...current])
       setActiveChallengeId(createdChallenge.id)
       await setLastActiveChallenge(userId, createdChallenge.id)
+      await loadGoals(createdChallenge.id)
       navigate('today')
+      if (payload.withFriend) await handleInviteForChallenge(createdChallenge)
     } catch (error) {
       console.error('App error:', error)
       setAppError(formatAppError(error))
@@ -605,21 +670,27 @@ function App() {
     }
   }
 
-  async function handleInviteFriend() {
-    if (!activeChallenge) return
-
+  async function handleInviteForChallenge(challenge) {
+    if (!challenge) return
     setAppError('')
     setInviteMessage('')
 
     try {
       const invite = await createChallengeInvite({
-        challengeId: activeChallenge.id,
+        challengeId: challenge.id,
         userId,
-        challengeTitle: activeChallenge.title,
+        challengeTitle: challenge.title,
       })
       const inviteLink = buildInviteLink(invite.token)
-      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.`
+      const shareText = `Присоединяйся к моему челленджу «${challenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.`
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`
+      setChallenges((current) =>
+        current.map((item) =>
+          item.id === challenge.id
+            ? { ...item, pending_collaboration: true, member_count: Math.max(Number(item.member_count || 1), 1) }
+            : item,
+        ),
+      )
 
       if (telegramContext.webApp?.openTelegramLink) {
         telegramContext.webApp.openTelegramLink(shareUrl)
@@ -694,7 +765,7 @@ function App() {
   async function toggleSimpleGoal(goalId) {
     const goal = simpleGoals.find((item) => item.id === goalId)
     const rawGoal = rawGoals.find((item) => item.id === goalId)
-    if (!goal || !rawGoal || !activeChallenge) return
+    if (!goal || !rawGoal || !activeChallenge || isChallengeWaitingForFriend(activeChallenge)) return
 
     const nextDone = !goal.done
     setSimpleGoals((goals) =>
@@ -723,7 +794,7 @@ function App() {
   async function setTimeGoal(goalId, value) {
     const goal = timeGoals.find((item) => item.id === goalId)
     const rawGoal = rawGoals.find((item) => item.id === goalId)
-    if (!goal || !rawGoal || !activeChallenge) return
+    if (!goal || !rawGoal || !activeChallenge || isChallengeWaitingForFriend(activeChallenge)) return
 
     const nextActual = Number(value)
     setTimeGoals((goals) =>
@@ -819,7 +890,6 @@ function App() {
           inviteMessage={inviteMessage}
           onToggleSimple={toggleSimpleGoal}
           onSetTime={setTimeGoal}
-          onInviteFriend={handleInviteFriend}
         />
       )}
       {screen === 'challenges' && (
@@ -830,11 +900,15 @@ function App() {
           appError={appError}
           onSelectChallenge={selectChallenge}
           onDeleteChallenge={handleDeleteChallenge}
+          onLeaveChallenge={handleLeaveChallenge}
           onEditChallenge={handleEditChallenge}
           onCreate={() => navigate('create')}
         />
       )}
-      {screen === 'analytics' && (
+      {screen === 'analytics' && isChallengeWaitingForFriend(activeChallenge) && (
+        <LockedAnalyticsScreen />
+      )}
+      {screen === 'analytics' && !isChallengeWaitingForFriend(activeChallenge) && (
         <AnalyticsScreen
           challenge={activeChallenge}
           goals={rawGoals}
@@ -870,6 +944,7 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
   const [settingsSecretTaps, setSettingsSecretTaps] = useState(0)
   const [isSecretPhotoOpen, setIsSecretPhotoOpen] = useState(false)
   const isSharedChallenge = Boolean(challenge && members.length > 1)
+  const isWaitingForFriend = Boolean(challenge?.pending_collaboration && Number(challenge?.member_count || 1) < 2)
 
   function openSettings() {
     setSettingsSecretTaps(0)
@@ -962,7 +1037,7 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
             <NavButton active={screen === 'today'} label="Сегодня" onClick={() => navigate('today')}>
               <TodayIcon />
             </NavButton>
-            <NavButton active={screen === 'analytics'} label="Аналитика" onClick={() => navigate('analytics')}>
+            <NavButton active={screen === 'analytics'} label="Аналитика" disabled={isWaitingForFriend} onClick={() => navigate('analytics')}>
               <ChartIcon />
             </NavButton>
             <NavButton label="Выход" onClick={logout}>
@@ -1076,7 +1151,6 @@ function TodayScreen({
   inviteMessage,
   onToggleSimple,
   onSetTime,
-  onInviteFriend,
 }) {
   if (!challenge) {
     return (
@@ -1092,6 +1166,7 @@ function TodayScreen({
   }
 
   const collaboratorMembers = orderMembers(members, currentUserId).filter((member) => member.user_id !== currentUserId)
+  const isWaitingForFriend = Boolean(challenge.pending_collaboration && Number(challenge.member_count || 1) < 2)
 
   return (
     <section className="screen">
@@ -1101,7 +1176,6 @@ function TodayScreen({
         members={members}
         dailyEntries={dailyEntries}
         currentUserId={currentUserId}
-        onInviteFriend={onInviteFriend}
       />
       {inviteMessage && <p className="success-note">{inviteMessage}</p>}
       {appError && <p className="form-error">{appError}</p>}
@@ -1117,6 +1191,7 @@ function TodayScreen({
                 goal={goal}
                 collaboratorStatuses={getGoalMemberStatuses(goal.id, collaboratorMembers, dailyEntries)}
                 currentUserId={currentUserId}
+                disabled={isWaitingForFriend}
                 onToggle={() => onToggleSimple(goal.id)}
               />
             ))}
@@ -1130,6 +1205,7 @@ function TodayScreen({
                 goal={goal}
                 collaboratorStatuses={getGoalMemberStatuses(goal.id, collaboratorMembers, dailyEntries)}
                 currentUserId={currentUserId}
+                disabled={isWaitingForFriend}
                 onChange={(value) => onSetTime(goal.id, value)}
               />
             ))}
@@ -1140,30 +1216,34 @@ function TodayScreen({
   )
 }
 
-function ProgressCard({ progress, challenge, members, dailyEntries, currentUserId, onInviteFriend }) {
+function ProgressCard({ progress, challenge, members, dailyEntries, currentUserId }) {
   const visibleMembers = members?.length ? orderMembers(members, currentUserId) : []
+  const isWaitingForFriend = Boolean(challenge.pending_collaboration && Number(challenge.member_count || 1) < 2)
 
   return (
     <section className="progress-card">
       <div className="progress-head">
         <div>
           <h2>{challenge.title}</h2>
-          <p>День {getChallengeDay(challenge)} из {challenge.duration_days}</p>
+          {!isWaitingForFriend && <p>День {getChallengeDay(challenge)} из {challenge.duration_days}</p>}
         </div>
-        <strong>{progress.todayPercent}%</strong>
+        {!isWaitingForFriend && <strong>{progress.todayPercent}%</strong>}
       </div>
 
-      <div className="progress-stack">
-        <ProgressLine label="Сегодня" value={progress.todayPercent} />
-        <ProgressLine label="Общий прогресс" value={progress.overallPercent} overall />
-      </div>
+      {isWaitingForFriend ? (
+        <p className="progress-caption">Ожидаем, пока друг примет приглашение.</p>
+      ) : (
+        <>
+          <div className="progress-stack">
+            <ProgressLine label="Сегодня" value={progress.todayPercent} />
+            <ProgressLine label="Общий прогресс" value={progress.overallPercent} overall />
+          </div>
 
-      <p className="progress-caption">
-        {progress.done} из {progress.total} целей закрыто сегодня.
-      </p>
-      <div className="progress-actions">
-        <button type="button" onClick={onInviteFriend}>Пригласить друга</button>
-      </div>
+          <p className="progress-caption">
+            {progress.done} из {progress.total} целей закрыто сегодня.
+          </p>
+        </>
+      )}
       {visibleMembers.length > 1 && (
         <div className="member-scoreboard">
           {visibleMembers.map((member) => (
@@ -1205,25 +1285,25 @@ function EmptyGoalState({ children }) {
   return <p className="empty-goal-state">{children}</p>
 }
 
-function SimpleGoalRow({ goal, collaboratorStatuses = [], currentUserId, onToggle }) {
+function SimpleGoalRow({ goal, collaboratorStatuses = [], currentUserId, disabled = false, onToggle }) {
   return (
-    <article className="goal-row">
+    <article className={`goal-row ${disabled ? 'locked' : ''}`}>
       <span className="goal-icon">
         <HeartIcon />
       </span>
       <strong>{goal.title}</strong>
       <div className="goal-status-cluster">
-        <button className={`check-button ${goal.done ? 'done' : ''}`} type="button" onClick={onToggle} aria-label="Отметить цель" />
+        <button className={`check-button ${goal.done ? 'done' : ''}`} type="button" onClick={onToggle} disabled={disabled} aria-label="Отметить цель" />
         <MemberGoalStatuses statuses={collaboratorStatuses} currentUserId={currentUserId} />
       </div>
     </article>
   )
 }
 
-function TimeGoalRow({ goal, collaboratorStatuses = [], currentUserId, onChange }) {
+function TimeGoalRow({ goal, collaboratorStatuses = [], currentUserId, disabled = false, onChange }) {
   const done = goal.actual >= goal.target
   return (
-    <article className="goal-row time-row">
+    <article className={`goal-row time-row ${disabled ? 'locked' : ''}`}>
       <span className="goal-icon">
         <ClockIcon />
       </span>
@@ -1231,7 +1311,7 @@ function TimeGoalRow({ goal, collaboratorStatuses = [], currentUserId, onChange 
         <strong>{goal.title}</strong>
         <span>{formatHours(goal.target)}</span>
       </div>
-      <select value={goal.actual} onChange={(event) => onChange(event.target.value)} aria-label={`Время для ${goal.title}`}>
+      <select value={goal.actual} onChange={(event) => onChange(event.target.value)} disabled={disabled} aria-label={`Время для ${goal.title}`}>
         {timeOptions.map((value) => (
           <option key={value} value={value}>
             {formatTimeSelect(value)}
@@ -1286,6 +1366,18 @@ function InviteScreen({ invite, appError, isBusy, onAccept, onDecline }) {
   )
 }
 
+function LockedAnalyticsScreen() {
+  return (
+    <section className="screen">
+      <div className="hero-card">
+        <p className="eyebrow">Аналитика</p>
+        <h2>Ждём друга.</h2>
+        <p>Аналитика совместного челленджа откроется после того, как друг примет приглашение.</p>
+      </div>
+    </section>
+  )
+}
+
 function ChallengesScreen({
   challenges,
   activeChallengeId,
@@ -1293,6 +1385,7 @@ function ChallengesScreen({
   appError,
   onSelectChallenge,
   onDeleteChallenge,
+  onLeaveChallenge,
   onEditChallenge,
   onCreate,
 }) {
@@ -1332,6 +1425,10 @@ function ChallengesScreen({
               setOpenId('')
               onDeleteChallenge(challenge.id)
             }}
+            onLeave={() => {
+              setOpenId('')
+              onLeaveChallenge(challenge.id)
+            }}
           />
         ))}
       </div>
@@ -1339,7 +1436,7 @@ function ChallengesScreen({
   )
 }
 
-function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDelete }) {
+function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDelete, onLeave }) {
   const pointerStart = useRef(null)
   const suppressClick = useRef(false)
 
@@ -1378,14 +1475,22 @@ function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDe
 
   return (
     <article className={`challenge-row ${challenge.active ? 'active' : ''} ${open ? 'open' : ''}`}>
-      <div className="challenge-actions">
-        <button type="button" onClick={onEdit} aria-label="Редактировать челлендж">
-          <EditIcon />
-        </button>
-        <button className="delete" type="button" onClick={onDelete} aria-label="Удалить челлендж">
-          <CloseIcon />
-        </button>
-      </div>
+      {challenge.canEdit ? (
+        <div className="challenge-actions">
+          <button type="button" onClick={onEdit} aria-label="Редактировать челлендж">
+            <EditIcon />
+          </button>
+          <button className="delete" type="button" onClick={onDelete} aria-label="Удалить челлендж">
+            <CloseIcon />
+          </button>
+        </div>
+      ) : (
+        <div className="challenge-actions single">
+          <button className="leave" type="button" onClick={onLeave} aria-label="Покинуть челлендж">
+            <LogoutIcon />
+          </button>
+        </div>
+      )}
       <button
         className="challenge-card"
         type="button"
@@ -1401,7 +1506,8 @@ function ChallengeRow({ challenge, open, onOpen, onClose, onSelect, onEdit, onDe
           <span>
             {challenge.goals} целей. Старт: {challenge.startDate}
           </span>
-          {challenge.isShared && <em className="shared-badge">Совместный</em>}
+          {challenge.pendingCollaboration && <em className="shared-badge pending">Ждём друга</em>}
+          {!challenge.pendingCollaboration && challenge.isShared && <em className="shared-badge">Совместный</em>}
         </div>
         <small>
           {challenge.day}/{challenge.days}
@@ -1617,6 +1723,8 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
   function submit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    const submitter = event.nativeEvent?.submitter
+    const withFriend = submitter instanceof HTMLButtonElement && submitter.value === 'with-friend'
     const normalizedSimpleGoals = simpleGoals
       .map((goal) => ({ ...goal, title: goal.title.trim() }))
       .filter((goal) => goal.title)
@@ -1638,6 +1746,7 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
       durationDays: Number(formData.get('durationDays') || 30),
       simpleGoals: normalizedSimpleGoals,
       timeGoals: normalizedTimeGoals,
+      withFriend,
     })
   }
 
@@ -1756,8 +1865,11 @@ function CreateChallengeScreen({ onSubmit, appError, editingChallenge }) {
         </div>
 
         {(localError || appError) && <p className="form-error">{localError || appError}</p>}
-        <button className="primary-button" type="submit">
+        <button className="primary-button" type="submit" name="startMode" value="solo">
           {isEditing ? 'Перезапустить челлендж' : 'Начать челлендж'}
+        </button>
+        <button className="ghost-button friend-start-button" type="submit" name="startMode" value="with-friend">
+          {isEditing ? 'Перезапустить челлендж с другом' : 'Начать челлендж с другом'}
         </button>
       </form>
     </section>
@@ -1816,9 +1928,9 @@ function Metric({ value, label }) {
   )
 }
 
-function NavButton({ active, label, onClick, children }) {
+function NavButton({ active, label, disabled = false, onClick, children }) {
   return (
-    <button className={active ? 'active' : ''} type="button" onClick={onClick}>
+    <button className={active ? 'active' : ''} type="button" onClick={onClick} disabled={disabled}>
       {children}
       <span>{label}</span>
     </button>
@@ -1998,6 +2110,7 @@ function formatDate(dateString) {
 }
 
 function normalizeChallenge(challenge, activeChallengeId) {
+  const isOwner = (challenge.user_role || 'member') === 'owner'
   return {
     id: challenge.id,
     title: challenge.title,
@@ -2006,8 +2119,14 @@ function normalizeChallenge(challenge, activeChallengeId) {
     goals: challenge.total_goals,
     startDate: formatDate(challenge.start_date),
     active: challenge.id === activeChallengeId,
+    canEdit: isOwner,
+    pendingCollaboration: Boolean(challenge.pending_collaboration),
     isShared: Boolean(challenge.is_shared || Number(challenge.member_count || 0) > 1),
   }
+}
+
+function isChallengeWaitingForFriend(challenge) {
+  return Boolean(challenge?.pending_collaboration && Number(challenge?.member_count || 1) < 2)
 }
 
 function getMemberName(member, currentUserId) {

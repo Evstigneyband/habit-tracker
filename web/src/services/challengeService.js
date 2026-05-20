@@ -22,8 +22,12 @@ export async function getUserChallenges(userId) {
     return ownChallenges || []
   }
 
+  const membershipByChallengeId = new Map()
   const sharedChallenges = (memberRows || [])
-    .map((row) => row.challenges)
+    .map((row) => {
+      if (row.challenge_id) membershipByChallengeId.set(row.challenge_id, row)
+      return row.challenges
+    })
     .filter(Boolean)
     .filter((challenge) => challenge.status !== 'deleted')
 
@@ -35,20 +39,34 @@ export async function getUserChallenges(userId) {
   const challenges = Array.from(byId.values())
   const challengeIds = challenges.map((challenge) => challenge.id)
   const memberCounts = new Map()
+  const pendingInvites = new Set()
 
   if (challengeIds.length) {
-    const { data: membershipRows, error: membershipError } = await supabase
-      .from('challenge_members')
-      .select('challenge_id, user_id, status')
-      .in('challenge_id', challengeIds)
-      .eq('status', 'active')
+    const [membershipResult, inviteResult] = await Promise.all([
+      supabase
+        .from('challenge_members')
+        .select('challenge_id, user_id, status')
+        .in('challenge_id', challengeIds)
+        .eq('status', 'active'),
+      supabase
+        .from('challenge_invites')
+        .select('challenge_id')
+        .in('challenge_id', challengeIds)
+        .eq('status', 'active'),
+    ])
 
-    if (!membershipError) {
-      ;(membershipRows || []).forEach((row) => {
+    if (!membershipResult.error) {
+      ;(membershipResult.data || []).forEach((row) => {
         memberCounts.set(row.challenge_id, (memberCounts.get(row.challenge_id) || 0) + 1)
       })
     } else {
-      console.warn('Could not load challenge member counts:', membershipError)
+      console.warn('Could not load challenge member counts:', membershipResult.error)
+    }
+
+    if (!inviteResult.error) {
+      ;(inviteResult.data || []).forEach((row) => pendingInvites.add(row.challenge_id))
+    } else {
+      console.warn('Could not load pending challenge invites:', inviteResult.error)
     }
   }
 
@@ -57,6 +75,8 @@ export async function getUserChallenges(userId) {
     return {
       ...challenge,
       member_count: memberCount,
+      user_role: challenge.user_id === userId ? 'owner' : membershipByChallengeId.get(challenge.id)?.role || 'member',
+      pending_collaboration: challenge.user_id === userId && memberCount < 2 && pendingInvites.has(challenge.id),
       is_shared: memberCount > 1 || challenge.user_id !== userId,
     }
   }).sort((left, right) => {
@@ -180,6 +200,24 @@ export async function deleteChallenge({ userId, challengeId }) {
     })
     .eq('id', challengeId)
     .eq('user_id', userId)
+
+  if (error) throw error
+}
+
+export async function leaveChallenge({ userId, challengeId }) {
+  const apiResult = await leaveChallengeViaApi(challengeId)
+  if (apiResult) return apiResult
+
+  const supabase = requireSupabase()
+  const { error } = await supabase
+    .from('challenge_members')
+    .update({
+      status: 'left',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('challenge_id', challengeId)
+    .eq('user_id', userId)
+    .neq('role', 'owner')
 
   if (error) throw error
 }
@@ -420,6 +458,13 @@ export async function joinChallengeInvite({ token, userId }) {
 
   if (memberError) throw memberError
 
+  const { error: inviteUpdateError } = await supabase
+    .from('challenge_invites')
+    .update({ status: 'revoked' })
+    .eq('id', invite.id)
+
+  if (inviteUpdateError) console.warn('Could not close accepted invite:', inviteUpdateError)
+
   const { data, error } = await supabase
     .from('challenges')
     .select('*')
@@ -522,6 +567,15 @@ async function joinChallengeInviteViaApi(token) {
     return await callAuthedApi('/api/join-invite', { token })
   } catch (error) {
     console.warn('Server invite join failed, trying client fallback:', error)
+    return null
+  }
+}
+
+async function leaveChallengeViaApi(challengeId) {
+  try {
+    return await callAuthedApi('/api/leave-challenge', { challengeId })
+  } catch (error) {
+    console.warn('Server challenge leave failed, trying client fallback:', error)
     return null
   }
 }

@@ -487,6 +487,11 @@
   font-weight: 900;
 }
 
+.friend-start-button {
+  color: #16784f;
+  background: #f7fbf8;
+}
+
 .invite-panel {
   display: grid;
   gap: 10px;
@@ -734,6 +739,15 @@
   border-top: 1px solid #e2e8e4;
 }
 
+.goal-row.locked {
+  opacity: .62;
+}
+
+.goal-row.locked button,
+.goal-row.locked select {
+  cursor: not-allowed;
+}
+
 .goal-icon {
   width: 24px;
   height: 24px;
@@ -909,6 +923,11 @@
   line-height: 1;
 }
 
+.shared-badge.pending {
+  color: #7a5a11;
+  background: #fff1c7;
+}
+
 .challenge-card small {
   padding: 4px 7px;
   border-radius: 999px;
@@ -934,6 +953,11 @@
   transition: opacity .16s ease, transform .2s ease;
 }
 
+.challenge-actions.single {
+  grid-template-columns: 42px;
+  width: 42px;
+}
+
 .challenge-row.open .challenge-actions {
   opacity: 1;
   pointer-events: auto;
@@ -952,6 +976,10 @@
 
 .challenge-actions button.delete {
   background: #d94b3d;
+}
+
+.challenge-actions button.leave {
+  background: #31433b;
 }
 
 .challenge-actions svg {
@@ -1228,4 +1256,9 @@ body.keyboard-active .bottom-nav {
 .bottom-nav button.active {
   color: #8ee0ad;
   background: rgba(142, 224, 173, .1);
+}
+
+.bottom-nav button:disabled {
+  opacity: .36;
+  cursor: not-allowed;
 }

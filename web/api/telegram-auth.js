@@ -153,6 +153,17 @@ async function findPendingInviteToken(supabase, telegramId) {
 
   if (!data?.invite_token) return ''
   if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) return ''
+
+  const { data: invite, error: inviteError } = await supabase
+    .from('challenge_invites')
+    .select('id, expires_at')
+    .eq('token', data.invite_token)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (inviteError || !invite) return ''
+  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return ''
+
   return data.invite_token
 }
 

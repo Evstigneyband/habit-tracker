@@ -44,11 +44,22 @@ export default async function handler(request, response) {
     return response.status(200).json({ ok: true })
   }
 
-  await savePendingInvite({
+  const savedInvite = await savePendingInvite({
     telegramId: telegramUserId,
     chatId,
     token: inviteToken,
   })
+
+  if (!savedInvite) {
+    await sendTelegramMessage({
+      chatId,
+      text: 'Это приглашение уже обработано или больше не активно. Открой приложение, чтобы продолжить.',
+      replyMarkup: {
+        inline_keyboard: [[makeOpenAppButton(appUrl)]],
+      },
+    })
+    return response.status(200).json({ ok: true })
+  }
 
   const inviteUrl = new URL(appUrl)
   inviteUrl.searchParams.set('invite', inviteToken)
@@ -65,7 +76,7 @@ export default async function handler(request, response) {
 }
 
 async function savePendingInvite({ telegramId, chatId, token }) {
-  if (!supabaseUrl || !supabaseServiceRoleKey || !telegramId || !token) return
+  if (!supabaseUrl || !supabaseServiceRoleKey || !telegramId || !token) return false
 
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
@@ -73,6 +84,26 @@ async function savePendingInvite({ telegramId, chatId, token }) {
       autoRefreshToken: false,
     },
   })
+
+  const { data: invite, error: inviteError } = await supabase
+    .from('challenge_invites')
+    .select('id, status, expires_at')
+    .eq('token', token)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (inviteError || !invite) return false
+  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return false
+
+  const { data: handledInvite } = await supabase
+    .from('telegram_pending_invites')
+    .select('status')
+    .eq('telegram_id', telegramId)
+    .eq('invite_token', token)
+    .in('status', ['accepted', 'declined'])
+    .maybeSingle()
+
+  if (handledInvite) return false
 
   const { error } = await supabase
     .from('telegram_pending_invites')
@@ -89,7 +120,10 @@ async function savePendingInvite({ telegramId, chatId, token }) {
 
   if (error) {
     console.warn('Could not save pending Telegram invite:', error)
+    return false
   }
+
+  return true
 }
 
 function normalizeInvitePayload(value) {
