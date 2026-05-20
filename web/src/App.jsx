@@ -605,8 +605,7 @@ function App() {
         challengeTitle: activeChallenge.title,
       })
       const inviteLink = buildInviteLink(invite.token)
-      const fallbackInviteLink = buildDirectInviteLink(invite.token)
-      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.\n\nОткрой через Telegram: ${inviteLink}\n\nЕсли входишь через email, можно открыть так: ${fallbackInviteLink}`
+      const shareText = `Присоединяйся к моему челленджу «${activeChallenge.title}» в Твой челлендж. Будем проходить вместе и смотреть прогресс друг друга.`
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(shareText)}`
 
       if (telegramContext.webApp?.openTelegramLink) {
@@ -621,7 +620,7 @@ function App() {
         return
       }
 
-      await navigator.clipboard.writeText(`${shareText}\n${inviteLink}`)
+      await navigator.clipboard.writeText(`${shareText}\n\n${inviteLink}`)
       setInviteMessage('Ссылка приглашения скопирована.')
     } catch (error) {
       console.error('Invite error:', error)
