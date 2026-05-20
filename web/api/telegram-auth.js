@@ -121,6 +121,7 @@ export default async function handler(request, response) {
         displayName,
         telegramId: telegramUser.id,
         telegramUsername: telegramUser.username || null,
+        photoUrl: telegramUser.photo_url || null,
       },
     })
   } catch (error) {
@@ -223,19 +224,34 @@ async function findTelegramProfile(supabase, telegramId) {
 }
 
 async function upsertTelegramProfile(supabase, { userId, email, telegramUser, displayName }) {
+  const payload = {
+    id: userId,
+    email,
+    display_name: displayName,
+    auth_provider: 'telegram',
+    telegram_id: telegramUser.id,
+    telegram_username: telegramUser.username || null,
+    photo_url: telegramUser.photo_url || null,
+    updated_at: new Date().toISOString(),
+  }
+
   const { data, error } = await supabase
     .from('profiles')
-    .upsert({
-      id: userId,
-      email,
-      display_name: displayName,
-      auth_provider: 'telegram',
-      telegram_id: telegramUser.id,
-      telegram_username: telegramUser.username || null,
-      updated_at: new Date().toISOString(),
-    })
+    .upsert(payload)
     .select('id, email, display_name')
     .single()
+
+  if (error && String(error.message || '').includes('photo_url')) {
+    const fallbackPayload = { ...payload }
+    delete fallbackPayload.photo_url
+    const fallbackResult = await supabase
+      .from('profiles')
+      .upsert(fallbackPayload)
+      .select('id, email, display_name')
+      .single()
+
+    if (!fallbackResult.error) return fallbackResult.data
+  }
 
   if (error) {
     throw makeSupabaseTelegramError(

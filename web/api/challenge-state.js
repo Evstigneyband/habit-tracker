@@ -42,7 +42,19 @@ export default async function handler(request, response) {
       return response.status(403).json({ error: 'Нет доступа к этому челленджу.' })
     }
 
-    const [goalsResult, entriesResult, membersResult] = await Promise.all([
+    await supabase
+      .from('challenge_members')
+      .upsert(
+        {
+          challenge_id: challengeId,
+          user_id: challenge.user_id,
+          role: 'owner',
+          status: 'active',
+        },
+        { onConflict: 'challenge_id,user_id' },
+      )
+
+    const [goalsResult, entriesResult, members] = await Promise.all([
       supabase
         .from('goals')
         .select('*')
@@ -53,29 +65,45 @@ export default async function handler(request, response) {
         .select('*')
         .eq('challenge_id', challengeId)
         .order('entry_date', { ascending: true }),
-      supabase
-        .from('challenge_members')
-        .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
-        .eq('challenge_id', challengeId)
-        .eq('status', 'active')
-        .order('joined_at', { ascending: true }),
+      loadMembersWithProfiles(supabase, challengeId),
     ])
 
     if (goalsResult.error) throw goalsResult.error
     if (entriesResult.error) throw entriesResult.error
-    if (membersResult.error) throw membersResult.error
 
     return response.status(200).json({
       data: {
         goals: goalsResult.data || [],
         entries: entriesResult.data || [],
-        members: membersResult.data || [],
+        members,
       },
     })
   } catch (error) {
     console.error('Challenge state API error:', error)
     return response.status(500).json({ error: String(error?.message || error || 'Не удалось загрузить челлендж.') })
   }
+}
+
+async function loadMembersWithProfiles(supabase, challengeId) {
+  const withPhoto = await supabase
+    .from('challenge_members')
+    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username, photo_url)')
+    .eq('challenge_id', challengeId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+
+  if (!withPhoto.error) return withPhoto.data || []
+  if (!String(withPhoto.error.message || '').includes('photo_url')) throw withPhoto.error
+
+  const fallback = await supabase
+    .from('challenge_members')
+    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
+    .eq('challenge_id', challengeId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+
+  if (fallback.error) throw fallback.error
+  return fallback.data || []
 }
 
 async function getRequestUser(request) {

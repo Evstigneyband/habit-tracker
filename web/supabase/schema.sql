@@ -7,6 +7,7 @@ create table if not exists public.profiles (
   auth_provider text not null default 'email' check (auth_provider in ('email', 'telegram')),
   telegram_id bigint unique,
   telegram_username text,
+  photo_url text,
   timezone text not null default 'Europe/Podgorica',
   last_seen_at timestamptz,
   last_active_challenge_id uuid,
@@ -17,6 +18,7 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists auth_provider text not null default 'email';
 alter table public.profiles add column if not exists telegram_id bigint unique;
 alter table public.profiles add column if not exists telegram_username text;
+alter table public.profiles add column if not exists photo_url text;
 alter table public.profiles add column if not exists last_seen_at timestamptz;
 
 create table if not exists public.challenges (
@@ -75,7 +77,7 @@ create table if not exists public.daily_entries (
   note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (goal_id, entry_date)
+  unique (goal_id, user_id, entry_date)
 );
 
 create table if not exists public.telegram_reminders (

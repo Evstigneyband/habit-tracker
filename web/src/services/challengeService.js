@@ -320,12 +320,22 @@ export async function getChallengeMembers(challengeId) {
   const supabase = requireSupabase()
   const { data, error } = await supabase
     .from('challenge_members')
-    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
+    .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username, photo_url)')
     .eq('challenge_id', challengeId)
     .eq('status', 'active')
     .order('joined_at', { ascending: true })
 
   if (error) {
+    if (String(error.message || '').includes('photo_url')) {
+      const fallback = await supabase
+        .from('challenge_members')
+        .select('user_id, role, joined_at, profiles (id, email, display_name, auth_provider, telegram_username)')
+        .eq('challenge_id', challengeId)
+        .eq('status', 'active')
+        .order('joined_at', { ascending: true })
+
+      if (!fallback.error) return fallback.data || []
+    }
     console.warn('Could not load challenge members:', error)
     return []
   }

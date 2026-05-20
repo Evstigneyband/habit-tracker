@@ -2010,7 +2010,9 @@ function getGoalMemberStatuses(goalId, members = [], entries = []) {
 
 function MemberAvatar({ member, currentUserId, telegramContext, compact = false }) {
   const [avatarFailed, setAvatarFailed] = useState(false)
-  const avatarUrl = member.user_id === currentUserId && telegramContext.isTelegram && !avatarFailed ? telegramContext.userPhotoUrl : ''
+  const profilePhotoUrl = member.profiles?.photo_url || ''
+  const currentTelegramPhotoUrl = member.user_id === currentUserId && telegramContext.isTelegram ? telegramContext.userPhotoUrl : ''
+  const avatarUrl = !avatarFailed ? currentTelegramPhotoUrl || profilePhotoUrl : ''
 
   if (avatarUrl) {
     return (
