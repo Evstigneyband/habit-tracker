@@ -59,6 +59,7 @@ export default async function handler(request, response) {
         .from('goals')
         .select('*')
         .eq('challenge_id', challengeId)
+        .eq('is_active', true)
         .order('sort_order', { ascending: true }),
       supabase
         .from('daily_entries')
