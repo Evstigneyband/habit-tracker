@@ -264,7 +264,7 @@ function App() {
     if (!isAuthed || !userId || !activeChallengeId || !isChallengeWaitingForFriend(activeChallenge)) return undefined
 
     const intervalId = window.setInterval(async () => {
-      const nextChallenges = await loadChallenges(userId, userEmail)
+      const nextChallenges = await loadChallenges(userId, userEmail, { silent: true })
       const refreshedChallenge = nextChallenges.find((challenge) => challenge.id === activeChallengeId)
       if (refreshedChallenge && !isChallengeWaitingForFriend(refreshedChallenge)) {
         await loadGoals(activeChallengeId, { silent: true })
@@ -362,9 +362,12 @@ function App() {
     navigate('auth')
   }
 
-  async function loadChallenges(nextUserId, fallbackCaption = '') {
-    setIsLoadingChallenges(true)
-    setAppError('')
+  async function loadChallenges(nextUserId, fallbackCaption = '', options = {}) {
+    const silent = Boolean(options.silent)
+    if (!silent) {
+      setIsLoadingChallenges(true)
+      setAppError('')
+    }
 
     try {
       const [nextChallenges, profile] = await Promise.all([
@@ -390,10 +393,10 @@ function App() {
       return nextChallenges
     } catch (error) {
       console.error('App error:', error)
-      setAppError(formatAppError(error))
+      if (!silent) setAppError(formatAppError(error))
       return []
     } finally {
-      setIsLoadingChallenges(false)
+      if (!silent) setIsLoadingChallenges(false)
     }
   }
 

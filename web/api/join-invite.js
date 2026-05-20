@@ -49,6 +49,34 @@ export default async function handler(request, response) {
 
     if (memberError) throw memberError
 
+    const { data: challengeBeforeStart, error: challengeBeforeStartError } = await supabase
+      .from('challenges')
+      .select('id, duration_days')
+      .eq('id', invite.challenge_id)
+      .single()
+
+    if (challengeBeforeStartError) throw challengeBeforeStartError
+
+    const startDate = getTodayDate()
+    const endDate = addDays(startDate, Number(challengeBeforeStart.duration_days || 1) - 1)
+    const { error: challengeStartError } = await supabase
+      .from('challenges')
+      .update({
+        start_date: startDate,
+        end_date: endDate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', invite.challenge_id)
+
+    if (challengeStartError) throw challengeStartError
+
+    const { error: entriesResetError } = await supabase
+      .from('daily_entries')
+      .delete()
+      .eq('challenge_id', invite.challenge_id)
+
+    if (entriesResetError) throw entriesResetError
+
     const { error: inviteUpdateError } = await supabase
       .from('challenge_invites')
       .update({
@@ -121,6 +149,33 @@ function normalizeInviteToken(value) {
   const trimmed = String(value).trim()
   if (trimmed.startsWith('invite_')) return trimmed.slice('invite_'.length)
   return /^[a-f0-9]{20,}$/i.test(trimmed) ? trimmed : ''
+}
+
+function getTodayDate() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Podgorica',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  const day = parts.find((part) => part.type === 'day')?.value
+  return `${year}-${month}-${day}`
+}
+
+function addDays(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return formatDate(date)
+}
+
+function formatDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatServerError(error) {
