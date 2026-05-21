@@ -1566,12 +1566,11 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
                 <span>{day.day}</span>
                 {isShared ? (
                   <div className="day-member-values">
-                    {analyticsByMember.map(({ member, analytics: memberAnalytics }) => {
+                    {analyticsByMember.map(({ member, analytics: memberAnalytics }, index) => {
                       const memberDay = memberAnalytics.days.find((item) => item.day === day.day)
                       return (
-                        <small className="day-member-pill" key={member.user_id}>
-                          <span>{getMemberInitial(member, currentUserId)}</span>
-                          {!memberDay?.future && <span>{memberDay?.percent || 0}</span>}
+                        <small className={index === 0 ? 'primary' : 'secondary'} key={member.user_id}>
+                          {memberDay?.future ? '' : `${memberDay?.percent || 0}%`}
                         </small>
                       )
                     })}
