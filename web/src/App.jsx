@@ -1530,9 +1530,21 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
       <div className="hero-card">
         <p className="eyebrow">Аналитика</p>
         <h2>{challenge?.title || 'Нет челленджа'}</h2>
-        <p>
-          День {analytics.currentDay} из {analytics.durationDays}. Данные обновляются по сохранённым отметкам.
-        </p>
+        <p>День {analytics.currentDay} из {analytics.durationDays}</p>
+        <div className="analytics-hero-progress">
+          {isShared ? (
+            analyticsByMember.map(({ member, analytics: memberAnalytics }) => (
+              <ProgressLine
+                key={member.user_id}
+                label={getMemberName(member, currentUserId)}
+                value={memberAnalytics.overallPercent}
+                overall
+              />
+            ))
+          ) : (
+            <ProgressLine label="Общий прогресс" value={analytics.overallPercent} overall />
+          )}
+        </div>
       </div>
 
       <div className="metric-grid">
@@ -1541,17 +1553,6 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
         <Metric value={String(analytics.fullDays)} label="Дней на 100%" />
         <Metric value={String(analytics.lowDays)} label="Дней ниже 50%" />
       </div>
-
-      {isShared && (
-        <div className="member-analytics-strip">
-          {analyticsByMember.map(({ member, analytics: memberAnalytics }) => (
-            <div key={member.user_id}>
-              <span>{getMemberName(member, currentUserId)}</span>
-              <strong>{memberAnalytics.overallPercent}%</strong>
-            </div>
-          ))}
-        </div>
-      )}
 
       <section className="goal-section">
         <h2>Календарь</h2>
@@ -1568,8 +1569,9 @@ function AnalyticsScreen({ challenge, goals, dailyEntries, totalGoals, members =
                     {analyticsByMember.map(({ member, analytics: memberAnalytics }) => {
                       const memberDay = memberAnalytics.days.find((item) => item.day === day.day)
                       return (
-                        <small key={member.user_id}>
-                          {getMemberInitial(member, currentUserId)} {memberDay?.future ? '' : `${memberDay?.percent || 0}%`}
+                        <small className="day-member-pill" key={member.user_id}>
+                          <span>{getMemberInitial(member, currentUserId)}</span>
+                          {!memberDay?.future && <span>{memberDay?.percent || 0}</span>}
                         </small>
                       )
                     })}
