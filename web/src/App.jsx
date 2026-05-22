@@ -2419,7 +2419,7 @@ function formatAppError(error) {
   }
 
   if (message.includes('permission denied')) {
-    return 'Доступ ещё не готов. Если ты только что зарегистрировался, подтверди email по ссылке из письма и войди снова.'
+    return 'Доступ ещё готовится. Подожди пару секунд и попробуй снова.'
   }
 
   if (message.includes('invalid login credentials')) {

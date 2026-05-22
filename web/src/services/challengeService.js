@@ -563,12 +563,7 @@ export async function saveDailyEntry({
 }
 
 async function joinChallengeInviteViaApi(token) {
-  try {
-    return await callAuthedApi('/api/join-invite', { token })
-  } catch (error) {
-    console.warn('Server invite join failed, trying client fallback:', error)
-    return null
-  }
+  return callAuthedApi('/api/join-invite', { token })
 }
 
 async function leaveChallengeViaApi(challengeId) {
@@ -591,10 +586,7 @@ async function saveDailyEntryViaApi(payload) {
 
 async function callAuthedApi(path, payload) {
   const supabase = requireSupabase()
-  const { data, error } = await supabase.auth.getSession()
-  if (error) throw error
-  const accessToken = data.session?.access_token
-  if (!accessToken) throw new Error('Нет активной сессии')
+  const accessToken = await waitForAccessToken(supabase)
 
   const response = await fetch(path, {
     method: 'POST',
@@ -611,4 +603,27 @@ async function callAuthedApi(path, payload) {
   }
 
   return body.data
+}
+
+async function waitForAccessToken(supabase) {
+  let lastError = null
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { data, error } = await supabase.auth.getSession()
+    if (error) {
+      lastError = error
+    } else if (data.session?.access_token) {
+      return data.session.access_token
+    }
+
+    await delay(220)
+  }
+
+  throw lastError || new Error('Сессия ещё готовится. Попробуй нажать кнопку ещё раз через пару секунд.')
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
