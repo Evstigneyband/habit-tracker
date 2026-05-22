@@ -913,6 +913,15 @@ function App() {
           currentUserId={userId}
         />
       )}
+      {screen === 'awards' && (
+        <AwardsScreen
+          challenge={activeChallenge}
+          goals={rawGoals}
+          dailyEntries={dailyEntries}
+          totalGoals={simpleGoals.length + timeGoals.length}
+          currentUserId={userId}
+        />
+      )}
       {screen === 'create' && (
         <CreateChallengeScreen
           key={editingChallenge?.id || 'new'}
@@ -1019,6 +1028,11 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
                     <strong>{telegramContext.userName}</strong>
                   </div>
                 )}
+                {logout && (
+                  <button className="settings-logout" type="button" onClick={logout}>
+                    Выйти из аккаунта
+                  </button>
+                )}
               </section>
             )}
           </div>
@@ -1035,8 +1049,8 @@ function AppShell({ caption, showMenu, screen, navigate, logout, telegramContext
             <NavButton active={screen === 'analytics'} label="Аналитика" disabled={isWaitingForFriend} onClick={() => navigate('analytics')}>
               <ChartIcon />
             </NavButton>
-            <NavButton label="Выход" onClick={logout}>
-              <LogoutIcon />
+            <NavButton active={screen === 'awards'} label="Награды" onClick={() => navigate('awards')}>
+              <AwardIcon />
             </NavButton>
           </nav>
         )}
@@ -1366,6 +1380,47 @@ function LockedAnalyticsScreen() {
         <p className="eyebrow">Аналитика</p>
         <h2>Ждём друга.</h2>
         <p>Аналитика совместного челленджа откроется после того, как друг примет приглашение.</p>
+      </div>
+    </section>
+  )
+}
+
+function AwardsScreen({ challenge, goals, dailyEntries, totalGoals, currentUserId }) {
+  const analytics = buildAnalytics(challenge, goals, filterEntriesByUser(dailyEntries, currentUserId), totalGoals)
+  const awards = buildAwards(analytics)
+  const unlockedCount = awards.filter((award) => award.unlocked).length
+
+  return (
+    <section className="screen">
+      <div className="hero-card awards-hero">
+        <p className="eyebrow">Награды</p>
+        <h2>{challenge?.title || 'Твой прогресс'}</h2>
+        <p>
+          {unlockedCount} из {awards.length} наград открыто. Закрывай дни на 100% и собирай серии.
+        </p>
+        <div className="awards-summary-ring" aria-hidden="true">
+          <span>{unlockedCount}</span>
+          <small>/{awards.length}</small>
+        </div>
+      </div>
+
+      <div className="awards-grid">
+        {awards.map((award) => (
+          <article className={`award-card ${award.unlocked ? 'unlocked' : 'locked'}`} key={award.id}>
+            <div className={`award-medal tone-${award.tone}`} style={{ '--award-progress': `${award.progress}%` }}>
+              <div>
+                <AwardIcon />
+              </div>
+            </div>
+            <div className="award-copy">
+              <strong>{award.title}</strong>
+              <span>{award.description}</span>
+            </div>
+            <div className="award-progress-line">
+              <span style={{ width: `${award.progress}%` }} />
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )
@@ -2053,6 +2108,81 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
   }
 }
 
+function buildAwards(analytics) {
+  const fullDays = analytics.fullDays || 0
+  const maxStreak = getMaxFullDayStreak(analytics.days || [])
+  const overall = analytics.overallPercent || 0
+  const average = analytics.averagePercent || 0
+  const seriesAwards = [
+    { id: 'streak-2', title: 'Два дня подряд', description: 'Держи 100% два дня подряд.', threshold: 2, tone: 'green' },
+    { id: 'streak-3', title: 'Три дня подряд', description: 'Три идеальных дня без паузы.', threshold: 3, tone: 'blue' },
+    { id: 'streak-5', title: 'Пять дней подряд', description: 'Серия уже стала заметной.', threshold: 5, tone: 'violet' },
+    { id: 'streak-7', title: 'Неделя на 100%', description: 'Семь дней подряд в полном фокусе.', threshold: 7, tone: 'gold' },
+    { id: 'streak-10', title: 'Десять подряд', description: 'Десять идеальных дней подряд.', threshold: 10, tone: 'flame' },
+  ]
+
+  return [
+    {
+      id: 'first-full-day',
+      title: 'Первый идеальный день',
+      description: 'Закрой первый день на 100%.',
+      tone: 'gold',
+      unlocked: fullDays >= 1,
+      progress: fullDays >= 1 ? 100 : 0,
+    },
+    ...seriesAwards.map((award) => ({
+      ...award,
+      unlocked: maxStreak >= award.threshold,
+      progress: Math.min(Math.round((maxStreak / award.threshold) * 100), 100),
+    })),
+    {
+      id: 'five-full-days',
+      title: 'Пять идеальных дней',
+      description: 'Набери пять дней на 100% за челлендж.',
+      tone: 'green',
+      unlocked: fullDays >= 5,
+      progress: Math.min(Math.round((fullDays / 5) * 100), 100),
+    },
+    {
+      id: 'half-way',
+      title: 'Половина пути',
+      description: 'Доведи общий прогресс до 50%.',
+      tone: 'blue',
+      unlocked: overall >= 50,
+      progress: Math.min(Math.round((overall / 50) * 100), 100),
+    },
+    {
+      id: 'steady-average',
+      title: 'Стабильный ритм',
+      description: 'Держи средний день на уровне 80%.',
+      tone: 'violet',
+      unlocked: average >= 80,
+      progress: Math.min(Math.round((average / 80) * 100), 100),
+    },
+    {
+      id: 'finish-hero',
+      title: 'Челлендж закрыт',
+      description: 'Дойди до 100% общего прогресса.',
+      tone: 'flame',
+      unlocked: overall >= 100,
+      progress: Math.min(overall, 100),
+    },
+  ]
+}
+
+function getMaxFullDayStreak(days) {
+  return days.reduce(
+    (acc, day) => {
+      const current = !day.future && day.percent === 100 ? acc.current + 1 : 0
+      return {
+        current,
+        best: Math.max(acc.best, current),
+      }
+    },
+    { current: 0, best: 0 },
+  ).best
+}
+
 function buildInsights({ strongestGoal, weakestGoal, bestDay, worstDay }) {
   const insights = []
   if (strongestGoal) {
@@ -2268,6 +2398,16 @@ function ChartIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M6 20V10M12 20V4M18 20v-7" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function AwardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m9 13-1.2 6 4.2-2.4 4.2 2.4L15 13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m10.4 8 1.1 1.1 2.2-2.4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
