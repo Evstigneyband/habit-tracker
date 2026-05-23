@@ -406,6 +406,30 @@ export async function getChallengeState(challengeId) {
   return callAuthedApi('/api/challenge-state', { challengeId })
 }
 
+export async function getAccountAwardRecords(userId) {
+  const supabase = requireSupabase()
+  const [awardsResult, eventsResult] = await Promise.all([
+    supabase
+      .from('user_awards')
+      .select('*')
+      .eq('user_id', userId)
+      .order('unlocked_at', { ascending: true }),
+    supabase
+      .from('user_award_events')
+      .select('*')
+      .eq('user_id', userId)
+      .order('event_date', { ascending: true }),
+  ])
+
+  if (awardsResult.error) throw awardsResult.error
+  if (eventsResult.error) throw eventsResult.error
+
+  return {
+    awardRows: awardsResult.data || [],
+    awardEvents: eventsResult.data || [],
+  }
+}
+
 export async function createChallengeInvite({ challengeId, userId, challengeTitle }) {
   const supabase = requireSupabase()
   const token = crypto.randomUUID().replaceAll('-', '')
@@ -502,6 +526,14 @@ export async function saveDailyEntry({
     isChecked,
     actualHours,
   })
+  if (apiSavedEntry?.entry) {
+    return {
+      ...apiSavedEntry.entry,
+      new_awards: apiSavedEntry.newAwards || [],
+      award_rows: apiSavedEntry.awardRows || [],
+      award_events: apiSavedEntry.awardEvents || [],
+    }
+  }
   if (apiSavedEntry) return apiSavedEntry
 
   const supabase = requireSupabase()

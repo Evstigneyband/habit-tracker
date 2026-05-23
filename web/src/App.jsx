@@ -6,6 +6,7 @@ import {
   createChallengeInvite,
   clearPendingInvite,
   deleteChallenge,
+  getAccountAwardRecords,
   leaveChallenge,
   getChallengeEntries,
   getChallengeGoals,
@@ -20,6 +21,7 @@ import {
   setLastActiveChallenge,
   touchUserLastSeen,
 } from './services/challengeService'
+import { buildAwardsFromStats, buildAwardStats } from './lib/awards'
 import './App.css'
 
 function App() {
@@ -39,9 +41,15 @@ function App() {
   const [rawGoals, setRawGoals] = useState([])
   const [dailyEntries, setDailyEntries] = useState([])
   const [challengeMembers, setChallengeMembers] = useState([])
-  const [accountAwardState, setAccountAwardState] = useState({ challenges: [], goals: [], entries: [], loaded: false })
+  const [accountAwardState, setAccountAwardState] = useState({
+    challenges: [],
+    goals: [],
+    entries: [],
+    awardRows: [],
+    awardEvents: [],
+    loaded: false,
+  })
   const [awardToast, setAwardToast] = useState(null)
-  const [knownAwardIds, setKnownAwardIds] = useState(new Set())
   const [inviteToken, setInviteToken] = useState(() => (telegramContext.isTelegram ? '' : getInitialInviteToken()))
   const [inviteDetails, setInviteDetails] = useState(null)
   const [inviteAction, setInviteAction] = useState('')
@@ -49,8 +57,6 @@ function App() {
   const [authError, setAuthError] = useState('')
   const activeChallengeIdRef = useRef('')
   const handledInviteTokensRef = useRef(new Set())
-  const knownAwardIdsRef = useRef(new Set())
-  const awardsReadyRef = useRef({ userId: '', ready: false })
   const awardToastTimerRef = useRef(0)
   const [editingChallenge, setEditingChallenge] = useState(null)
 
@@ -272,15 +278,9 @@ function App() {
     () => buildAccountAwardAnalytics(accountAwardState, userId),
     [accountAwardState, userId],
   )
-  const accountAwards = useMemo(() => buildAwards(accountAwardAnalytics), [accountAwardAnalytics])
-  const visibleAccountAwards = useMemo(
-    () =>
-      accountAwards.map((award) =>
-        knownAwardIds.has(award.id)
-          ? { ...award, unlocked: true, progress: 100 }
-          : award,
-      ),
-    [accountAwards, knownAwardIds],
+  const accountAwards = useMemo(
+    () => buildAwards(accountAwardAnalytics, accountAwardState.awardRows),
+    [accountAwardAnalytics, accountAwardState.awardRows],
   )
 
   useEffect(() => {
@@ -299,7 +299,14 @@ function App() {
 
   useEffect(() => {
     if (!isAuthed || !userId || !challengeIdsSignature) {
-      setAccountAwardState({ challenges: [], goals: [], entries: [], loaded: Boolean(isAuthed && userId) })
+      setAccountAwardState({
+        challenges: [],
+        goals: [],
+        entries: [],
+        awardRows: [],
+        awardEvents: [],
+        loaded: Boolean(isAuthed && userId),
+      })
       return undefined
     }
 
@@ -317,33 +324,6 @@ function App() {
       isMounted = false
     }
   }, [challengeIdsSignature, isAuthed, userId])
-
-  useEffect(() => {
-    if (!isAuthed || !userId || !accountAwardState.loaded) return
-
-    if (awardsReadyRef.current.userId !== userId) {
-      knownAwardIdsRef.current = loadKnownAwardIds(userId)
-      setKnownAwardIds(new Set(knownAwardIdsRef.current))
-      awardsReadyRef.current = { userId, ready: false }
-    }
-
-    const unlockedAwards = accountAwards.filter((award) => award.unlocked)
-    if (!awardsReadyRef.current.ready) {
-      unlockedAwards.forEach((award) => knownAwardIdsRef.current.add(award.id))
-      saveKnownAwardIds(userId, knownAwardIdsRef.current)
-      setKnownAwardIds(new Set(knownAwardIdsRef.current))
-      awardsReadyRef.current.ready = true
-      return
-    }
-
-    const newAwards = unlockedAwards.filter((award) => !knownAwardIdsRef.current.has(award.id))
-    if (newAwards.length === 0) return
-
-    newAwards.forEach((award) => knownAwardIdsRef.current.add(award.id))
-    saveKnownAwardIds(userId, knownAwardIdsRef.current)
-    setKnownAwardIds(new Set(knownAwardIdsRef.current))
-    showAwardToast(newAwards[0])
-  }, [accountAwardState.loaded, accountAwards, isAuthed, userId])
 
   useEffect(() => () => window.clearTimeout(awardToastTimerRef.current), [])
 
@@ -427,11 +407,8 @@ function App() {
     setRawGoals([])
     setDailyEntries([])
     setChallengeMembers([])
-    setAccountAwardState({ challenges: [], goals: [], entries: [], loaded: false })
+    setAccountAwardState({ challenges: [], goals: [], entries: [], awardRows: [], awardEvents: [], loaded: false })
     setAwardToast(null)
-    setKnownAwardIds(new Set())
-    knownAwardIdsRef.current = new Set()
-    awardsReadyRef.current = { userId: '', ready: false }
     setInviteToken('')
     setInviteDetails(null)
     setIsAuthed(false)
@@ -487,8 +464,15 @@ function App() {
 
   async function loadAccountAwardState(nextChallenges) {
     const activeChallenges = (nextChallenges || []).filter((challenge) => challenge.status !== 'deleted')
+    const awardRecords = userId
+      ? await getAccountAwardRecords(userId).catch((error) => {
+          console.warn('Could not load account award records:', error)
+          return { awardRows: [], awardEvents: [] }
+        })
+      : { awardRows: [], awardEvents: [] }
+
     if (activeChallenges.length === 0) {
-      return { challenges: [], goals: [], entries: [] }
+      return { challenges: [], goals: [], entries: [], ...awardRecords }
     }
 
     const states = await Promise.all(
@@ -515,6 +499,7 @@ function App() {
       challenges: states.map((state) => state.challenge),
       goals: states.flatMap((state) => state.goals),
       entries: states.flatMap((state) => state.entries),
+      ...awardRecords,
     }
   }
 
@@ -936,6 +921,10 @@ function App() {
   }
 
   function upsertEntryState(entry) {
+    const newAwards = entry.new_awards || []
+    const incomingAwardRows = entry.award_rows || []
+    const incomingAwardEvents = entry.award_events || []
+
     setDailyEntries((entries) => {
       const exists = entries.some((item) => item.id === entry.id)
       if (exists) return entries.map((item) => (item.id === entry.id ? entry : item))
@@ -955,9 +944,13 @@ function App() {
         challenges: hasChallenge || !activeChallenge ? state.challenges : [...state.challenges, activeChallenge],
         goals: hasGoal ? state.goals : [...state.goals, ...rawGoals.filter((goal) => goal.id === entry.goal_id)],
         entries: nextEntries,
+        awardRows: mergeById(state.awardRows || [], incomingAwardRows),
+        awardEvents: mergeById(state.awardEvents || [], incomingAwardEvents),
         loaded: true,
       }
     })
+
+    if (newAwards.length) showAwardToast(newAwards[0])
   }
 
   if (isCheckingSession) {
@@ -1051,7 +1044,7 @@ function App() {
       )}
       {screen === 'awards' && (
         <AwardsScreen
-          awards={visibleAccountAwards}
+          awards={accountAwards}
           analytics={accountAwardAnalytics}
         />
       )}
@@ -2263,6 +2256,9 @@ function buildAnalytics(challenge, goals, entries, totalGoals) {
 }
 
 function buildAccountAwardAnalytics(state, userId) {
+  const awardEvents = state?.awardEvents || []
+  const awardRows = state?.awardRows || []
+  const serverStats = buildAwardStats(awardEvents)
   const challenges = state?.challenges || []
   const goals = state?.goals || []
   const entries = filterEntriesByUser(state?.entries || [], userId)
@@ -2272,9 +2268,13 @@ function buildAccountAwardAnalytics(state, userId) {
       durationDays: 0,
       overallPercent: 0,
       averagePercent: 0,
-      fullDays: 0,
+      fullDays: serverStats.fullDays,
       lowDays: 0,
-      maxStreak: 0,
+      maxStreak: serverStats.maxStreak,
+      completedChallenges: serverStats.completedChallenges,
+      battleWins: serverStats.battleWins,
+      awardRows,
+      awardEvents,
       days: [],
       goalStats: [],
       insights: [],
@@ -2303,75 +2303,29 @@ function buildAccountAwardAnalytics(state, userId) {
     durationDays: days.length,
     overallPercent: days.length ? Math.round(elapsedTotal / days.length) : 0,
     averagePercent: elapsedDays.length ? Math.round(elapsedTotal / elapsedDays.length) : 0,
-    fullDays: elapsedDays.filter((day) => day.percent === 100).length,
+    fullDays: Math.max(serverStats.fullDays, elapsedDays.filter((day) => day.percent === 100).length),
     lowDays: elapsedDays.filter((day) => day.percent < 50).length,
-    maxStreak: getMaxFullDayStreak(days),
+    maxStreak: Math.max(serverStats.maxStreak, getMaxFullDayStreak(days)),
+    completedChallenges: serverStats.completedChallenges,
+    battleWins: serverStats.battleWins,
+    awardRows,
+    awardEvents,
     days,
     goalStats: [],
     insights: [],
   }
 }
 
-function buildAwards(analytics) {
-  const fullDays = analytics.fullDays || 0
-  const maxStreak = analytics.maxStreak || getMaxFullDayStreak(analytics.days || [])
-  const overall = analytics.overallPercent || 0
-  const average = analytics.averagePercent || 0
-  const seriesAwards = [
-    { id: 'streak-2', title: 'Два дня подряд', description: 'Держи 100% два дня подряд.', threshold: 2, tone: 'green' },
-    { id: 'streak-3', title: 'Три дня подряд', description: 'Три идеальных дня без паузы.', threshold: 3, tone: 'blue' },
-    { id: 'streak-5', title: 'Пять дней подряд', description: 'Серия уже стала заметной.', threshold: 5, tone: 'violet' },
-    { id: 'streak-7', title: 'Неделя на 100%', description: 'Семь дней подряд в полном фокусе.', threshold: 7, tone: 'gold' },
-    { id: 'streak-10', title: 'Десять подряд', description: 'Десять идеальных дней подряд.', threshold: 10, tone: 'flame' },
-  ]
-
-  return [
+function buildAwards(analytics, awardRows = []) {
+  return buildAwardsFromStats(
     {
-      id: 'first-full-day',
-      title: 'Первый идеальный день',
-      description: 'Закрой первый день на 100%.',
-      tone: 'gold',
-      unlocked: fullDays >= 1,
-      progress: fullDays >= 1 ? 100 : 0,
+      fullDays: analytics.fullDays || 0,
+      maxStreak: analytics.maxStreak || 0,
+      completedChallenges: analytics.completedChallenges || 0,
+      battleWins: analytics.battleWins || 0,
     },
-    ...seriesAwards.map((award) => ({
-      ...award,
-      unlocked: maxStreak >= award.threshold,
-      progress: Math.min(Math.round((maxStreak / award.threshold) * 100), 100),
-    })),
-    {
-      id: 'five-full-days',
-      title: 'Пять идеальных дней',
-      description: 'Набери пять дней на 100% за челлендж.',
-      tone: 'green',
-      unlocked: fullDays >= 5,
-      progress: Math.min(Math.round((fullDays / 5) * 100), 100),
-    },
-    {
-      id: 'half-way',
-      title: 'Половина пути',
-      description: 'Доведи общий прогресс до 50%.',
-      tone: 'blue',
-      unlocked: overall >= 50,
-      progress: Math.min(Math.round((overall / 50) * 100), 100),
-    },
-    {
-      id: 'steady-average',
-      title: 'Стабильный ритм',
-      description: 'Держи средний день на уровне 80%.',
-      tone: 'violet',
-      unlocked: average >= 80,
-      progress: Math.min(Math.round((average / 80) * 100), 100),
-    },
-    {
-      id: 'finish-hero',
-      title: 'Челлендж закрыт',
-      description: 'Дойди до 100% общего прогресса.',
-      tone: 'flame',
-      unlocked: overall >= 100,
-      progress: Math.min(overall, 100),
-    },
-  ]
+    awardRows,
+  )
 }
 
 function getMaxFullDayStreak(days) {
@@ -2405,32 +2359,19 @@ function groupBy(items, key) {
   }, new Map())
 }
 
+function mergeById(currentItems = [], incomingItems = []) {
+  if (!incomingItems.length) return currentItems
+  const byId = new Map((currentItems || []).map((item) => [item.id, item]))
+  incomingItems.forEach((item) => {
+    if (item?.id) byId.set(item.id, item)
+  })
+  return Array.from(byId.values())
+}
+
 function diffDays(leftDate, rightDate) {
   const left = new Date(`${leftDate}T00:00:00`)
   const right = new Date(`${rightDate}T00:00:00`)
   return Math.round((right - left) / 86_400_000)
-}
-
-function loadKnownAwardIds(userId) {
-  try {
-    const raw = window.localStorage.getItem(getKnownAwardsKey(userId))
-    const ids = JSON.parse(raw || '[]')
-    return new Set(Array.isArray(ids) ? ids : [])
-  } catch {
-    return new Set()
-  }
-}
-
-function saveKnownAwardIds(userId, ids) {
-  try {
-    window.localStorage.setItem(getKnownAwardsKey(userId), JSON.stringify([...ids]))
-  } catch {
-    // Local storage can be unavailable in strict browser modes; awards still render from saved progress.
-  }
-}
-
-function getKnownAwardsKey(userId) {
-  return `habit-tracker-known-awards:${userId}`
 }
 
 function buildInsights({ strongestGoal, weakestGoal, bestDay, worstDay }) {
