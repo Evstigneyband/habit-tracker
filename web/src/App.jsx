@@ -1045,7 +1045,6 @@ function App() {
       {screen === 'awards' && (
         <AwardsScreen
           awards={accountAwards}
-          analytics={accountAwardAnalytics}
         />
       )}
       {screen === 'create' && (
@@ -1512,26 +1511,22 @@ function LockedAnalyticsScreen() {
   )
 }
 
-function AwardsScreen({ awards, analytics }) {
+function AwardsScreen({ awards }) {
   const unlockedCount = awards.filter((award) => award.unlocked).length
 
   return (
     <section className="screen">
       <div className="hero-card awards-hero">
-        <p className="eyebrow">Награды</p>
         <h2>Награды</h2>
         <p>
           {unlockedCount} из {awards.length} наград открыто. Они остаются в аккаунте и собираются во всех челленджах.
         </p>
         <div className="awards-summary-ring" aria-hidden="true">
-          <span>{unlockedCount}</span>
-          <small>/{awards.length}</small>
+          <span>
+            {unlockedCount}
+            <small>/{awards.length}</small>
+          </span>
         </div>
-      </div>
-
-      <div className="awards-profile-strip">
-        <span>{analytics.fullDays} дней на 100%</span>
-        <span>{analytics.maxStreak} подряд</span>
       </div>
 
       <div className="awards-grid">
