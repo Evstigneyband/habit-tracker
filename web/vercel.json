@@ -3,6 +3,10 @@
     {
       "path": "/api/telegram-daily-reminder",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/telegram-evening-reminder",
+      "schedule": "0 * * * *"
     }
   ]
 }
