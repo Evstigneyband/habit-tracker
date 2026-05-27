@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/telegram-evening-reminder",
-      "schedule": "0 * * * *"
+      "schedule": "0 18 * * *"
     }
   ]
 }
