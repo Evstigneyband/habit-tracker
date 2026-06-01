@@ -935,6 +935,11 @@
   background: #fff1c7;
 }
 
+.shared-badge.finished {
+  color: #5f6360;
+  background: #eef0ed;
+}
+
 .challenge-card small {
   padding: 4px 7px;
   border-radius: 999px;

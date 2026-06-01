@@ -37,6 +37,22 @@ export default async function handler(request, response) {
       return response.status(404).json({ error: 'Цель не найдена.' })
     }
 
+    const { data: challenge, error: challengeError } = await supabase
+      .from('challenges')
+      .select('id, start_date, end_date, duration_days, status')
+      .eq('id', challengeId)
+      .single()
+
+    if (challengeError || !challenge || challenge.status === 'deleted') {
+      return response.status(404).json({ error: 'Челлендж не найден.' })
+    }
+
+    const entryDate = String(payload.entryDate)
+    const endDate = challenge.end_date || addDays(challenge.start_date, Number(challenge.duration_days || 1) - 1)
+    if (challenge.status === 'completed' || entryDate < challenge.start_date || entryDate > endDate) {
+      return response.status(409).json({ error: 'Челлендж уже завершён. Прогресс больше не изменяется.' })
+    }
+
     const isTimeGoal = goal.goal_type === 'time'
     const targetHours = isTimeGoal ? Number(goal.target_hours || 0) : null
     const actualHours = isTimeGoal ? Number(payload.actualHours || 0) : 0
@@ -46,7 +62,7 @@ export default async function handler(request, response) {
       challenge_id: challengeId,
       goal_id: goalId,
       user_id: user.id,
-      entry_date: payload.entryDate,
+      entry_date: entryDate,
       day_number: Number(payload.dayNumber || 1),
       goal_type: goal.goal_type,
       is_checked: !isTimeGoal && Boolean(payload.isChecked),
@@ -356,6 +372,19 @@ function createServiceClient() {
       autoRefreshToken: false,
     },
   })
+}
+
+function addDays(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return formatLocalDate(date)
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatServerError(error) {

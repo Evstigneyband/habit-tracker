@@ -611,6 +611,7 @@ async function saveDailyEntryViaApi(payload) {
   try {
     return await callAuthedApi('/api/save-entry', payload)
   } catch (error) {
+    if (String(error?.message || '').includes('заверш')) throw error
     console.warn('Server entry save failed, trying client fallback:', error)
     return null
   }
