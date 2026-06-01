@@ -205,6 +205,23 @@ function App() {
     }
   }, [inviteToken, telegramContext])
 
+  const activeChallenge = useMemo(
+    () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
+    [activeChallengeId, challenges],
+  )
+  const challengeIdsSignature = useMemo(
+    () => challenges.map((challenge) => challenge.id).sort().join(','),
+    [challenges],
+  )
+  const accountAwardAnalytics = useMemo(
+    () => buildAccountAwardAnalytics(accountAwardState, userId),
+    [accountAwardState, userId],
+  )
+  const accountAwards = useMemo(
+    () => buildAwards(accountAwardAnalytics, accountAwardState.awardRows),
+    [accountAwardAnalytics, accountAwardState.awardRows],
+  )
+
   useEffect(() => {
     if (!activeChallengeId) {
       return
@@ -271,23 +288,6 @@ function App() {
       supabase.removeChannel(channel)
     }
   }, [activeChallengeId, isAuthed, userId])
-
-  const activeChallenge = useMemo(
-    () => challenges.find((challenge) => challenge.id === activeChallengeId) || challenges[0] || null,
-    [activeChallengeId, challenges],
-  )
-  const challengeIdsSignature = useMemo(
-    () => challenges.map((challenge) => challenge.id).sort().join(','),
-    [challenges],
-  )
-  const accountAwardAnalytics = useMemo(
-    () => buildAccountAwardAnalytics(accountAwardState, userId),
-    [accountAwardState, userId],
-  )
-  const accountAwards = useMemo(
-    () => buildAwards(accountAwardAnalytics, accountAwardState.awardRows),
-    [accountAwardAnalytics, accountAwardState.awardRows],
-  )
 
   useEffect(() => {
     if (!isAuthed || !userId || !activeChallengeId || !isChallengeWaitingForFriend(activeChallenge)) return undefined
